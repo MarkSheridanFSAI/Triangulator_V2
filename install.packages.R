@@ -1,5 +1,8 @@
+# Run this once to install everything Triangulator needs.
+# (Select all and click "Run", or type: source("install.packages.R"))
+
 install_if_missing <- function(packages) {
-  missing <- packages[!packages %in% installed.packages()[, "Package"]]
+  missing <- packages[!packages %in% rownames(installed.packages())]
   if (length(missing)) {
     install.packages(missing)
     message("Installed missing packages: ", paste(missing, collapse = ", "))
@@ -8,13 +11,11 @@ install_if_missing <- function(packages) {
   }
 }
 
-# List of required packages
-required_packages <- c(
-  "shiny", "shinyalert", "shinyjs", "ggplot2", "dplyr", "DT", "readxl", 
-  "openxlsx", "tidyr", "data.table", "validate", "rlang", 
-  "knitr", "kableExtra", "plotly", "scales", 
-  "waterfalls", "patchwork", "purrr"
-)
+# Needed to run the app
+install_if_missing(c(
+  "shiny", "bslib", "dplyr", "tidyr", "data.table", "readxl", "openxlsx",
+  "DT", "ggplot2", "plotly", "scales", "waterfalls"
+))
 
-# Install missing packages
-install_if_missing(required_packages)
+# Needed only to run the automated tests
+install_if_missing("testthat")
