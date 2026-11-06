@@ -11,9 +11,9 @@ install_if_missing <- function(packages) {
 # List of required packages
 required_packages <- c(
   "shiny", "shinyalert", "shinyjs", "ggplot2", "dplyr", "DT", "readxl", 
-  "openxlsx", "tidyr", "data.table", "validate", "lubridate", "rlang", 
-  "rmarkdown", "knitr", "kableExtra", "plotly", "scales", "cowplot", 
-  "later", "waterfalls", "patchwork", "purrr"
+  "openxlsx", "tidyr", "data.table", "validate", "rlang", 
+  "knitr", "kableExtra", "plotly", "scales", 
+  "waterfalls", "patchwork", "purrr"
 )
 
 # Install missing packages
