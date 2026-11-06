@@ -93,3 +93,20 @@ test_that("the dashboard tabs work with comparisons switched on", {
     expect_equal(glance()$group[nrow(glance())], "All groups")
   })
 })
+
+test_that("claim size bands always have distinct labels, whatever the display setting", {
+  # Regression test: in millions, 5,000-wide bands were all labelled "0.0m".
+  d <- sample_app_data()
+  for (divisor in c(1, 1000, 1e6)) {
+    ds <- display_settings(divisor, "£")
+    for (size in BUCKET_CHOICES) {
+      accuracy <- min(10^-ds$digits, 10^floor(log10(size / ds$divisor)))
+      b <- claim_size_buckets(d$current, d$groupings, size, label_fn = function(x) fmt_money(x, ds, accuracy))
+      expect_false(anyDuplicated(levels(b$bucket)) > 0, label = paste(divisor, size))
+      expect_equal(sum(b$`All groups`), nrow(d$current))
+    }
+  }
+  # the safety net: a formatter that makes every label the same falls back to plain numbers
+  b <- claim_size_buckets(d$current, d$groupings, 5000, label_fn = function(x) rep("same", length(x)))
+  expect_equal(as.character(b$bucket[1]), "0 - 5,000")
+})

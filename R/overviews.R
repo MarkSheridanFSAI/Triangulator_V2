@@ -65,8 +65,14 @@ claim_size_buckets <- function(current, groupings, size, max_buckets = 200, labe
   n_buckets <- min(top + 1, max_buckets)
   k <- pmin(k, n_buckets - 1)
   lower <- (seq_len(n_buckets) - 1) * size
-  labels <- paste(label_fn(lower), "-", label_fn(lower + size))
-  if (top + 1 > max_buckets) labels[n_buckets] <- paste0(label_fn(lower[n_buckets]), " and above")
+  make_labels <- function(fn) {
+    out <- paste(fn(lower), "-", fn(lower + size))
+    if (top + 1 > max_buckets) out[n_buckets] <- paste0(fn(lower[n_buckets]), " and above")
+    out
+  }
+  labels <- make_labels(label_fn)
+  # Safety net: if the chosen format would make two bands look the same, use plain numbers.
+  if (anyDuplicated(labels)) labels <- make_labels(fmt_amount)
   levels <- c(if (any(negative)) "Below 0", labels)
   bucket <- factor(ifelse(negative, "Below 0", labels[k + 1]), levels = levels)
 

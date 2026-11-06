@@ -135,9 +135,9 @@ display_settings <- function(divisor = 1, symbol = "") {
 DEFAULT_DISPLAY <- display_settings()
 
 # An amount as text, e.g. "£1,234", "£1.2k" or "-£3.4m".
-fmt_money <- function(x, ds = DEFAULT_DISPLAY) {
+fmt_money <- function(x, ds = DEFAULT_DISPLAY, accuracy = 10^-ds$digits) {
   out <- paste0(ifelse(x < 0, "-", ""), ds$symbol,
-                scales::comma(abs(x) / ds$divisor, accuracy = 10^-ds$digits), ds$suffix)
+                scales::comma(abs(x) / ds$divisor, accuracy = accuracy), ds$suffix)
   out[is.na(x)] <- ""
   out
 }

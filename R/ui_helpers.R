@@ -85,7 +85,7 @@ placeholder <- function(text, icon_name = "circle-info") {
 
 how_it_works <- function() {
   steps <- list(c("upload", "Upload your claims file"), c("table-columns", "Match your columns"),
-                c("list-check", "Check your data"), c("chart-column", "Explore the dashboard"))
+                c("list-check", "Check your data"), c("chart-column", "Build your dashboard"))
   div(class = "how-it-works",
       lapply(seq_along(steps), function(i) div(step_badge(i), tags$span(steps[[i]][2]))))
 }

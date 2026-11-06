@@ -22,6 +22,23 @@ check_upload <- function(df, mapping) {
   )
 }
 
+# A short, high-level list of the checks that didn't pass (the full table is in a dropdown).
+check_overview <- function(ch) {
+  flagged <- ch$summary[ch$summary$status != "Passed", ]
+  if (nrow(flagged) == 0) {
+    return(div(class = "alert alert-success mt-3 d-flex gap-2", icon("circle-check"),
+               tags$span("All ", nrow(ch$summary), " checks passed.")))
+  }
+  div(class = "mt-3",
+      tags$h6(paste0(nrow(flagged), " of ", nrow(ch$summary), " checks need a look:")),
+      tags$ul(class = "mb-0", lapply(seq_len(nrow(flagged)), function(i) {
+        tags$li(tags$strong(flagged$check[i], .noWS = "after"), ": ",
+                scales::comma(flagged$rows_affected[i]),
+                if (flagged$rows_affected[i] == 1) " row. " else " rows. ",
+                tags$span(class = "text-muted", flagged$explanation[i]))
+      })))
+}
+
 mod_import_ui <- function(id) {
   ns <- NS(id)
   div(
@@ -58,7 +75,9 @@ mod_import_ui <- function(id) {
     card(class = "mb-4", step_header(2, "Tell Triangulator which column is which"),
          card_body(fillable = FALSE, uiOutput(ns("mapping_ui")))),
     card(class = "mb-4", step_header(3, "Check your data"),
-         card_body(fillable = FALSE, uiOutput(ns("checks_ui"))))
+         card_body(fillable = FALSE, uiOutput(ns("checks_ui")))),
+    card(class = "mb-4", step_header(4, "Build your dashboard"),
+         card_body(fillable = FALSE, uiOutput(ns("build_ui"))))
   )
 }
 
@@ -296,18 +315,36 @@ mod_import_server <- function(id) {
               "Some rows are missing a claim ID or valuation date and will be left out. ",
               "You can carry on, but it's best to fix them in your file and upload it again.")
         },
-        div(class = "d-flex flex-wrap align-items-center gap-3 mt-3",
+        check_overview(ch),
+        accordion(
+          open = FALSE, class = "mt-3",
+          accordion_panel(
+            paste0("See all ", nrow(ch$summary), " checks in detail"), icon = icon("list-check"),
+            tags$p(class = "small text-muted",
+                   "The data score is the share of all row-by-row checks that passed. ",
+                   "Click a check in the table to see the rows involved."),
+            DT::DTOutput(ns("checks_table")),
+            uiOutput(ns("failing_rows"))
+          )
+        )
+      )
+    })
+
+    # ---- Step 4: build ----
+    output$build_ui <- renderUI({
+      st <- check_state()
+      if (is.null(upload())) return(placeholder("Complete steps 1 to 3 first."))
+      if (is.null(st) || !checks_current() || st$status != "checked") {
+        return(placeholder("Check your data in step 3 first."))
+      }
+      ch <- st$checks
+      tagList(
+        tags$p("Triangulator will now build every view of your data. This usually takes a few seconds."),
+        div(class = "d-flex flex-wrap align-items-center gap-3",
             actionButton(ns("build"), "Build my dashboard", icon = icon("play"), class = "btn-success btn-lg"),
             tags$span(class = "text-muted",
                       if (ch$n_errors + ch$n_warnings > 0) "Warnings don't stop the app from working."
-                      else "Everything looks good.")),
-        tags$h6(class = "mt-4", "Check details"),
-        tags$p(class = "small text-muted",
-               "The data score is the share of all row-by-row checks that passed. ",
-               "Click a check in the table to see the rows involved."),
-        DT::DTOutput(ns("checks_table")),
-        uiOutput(ns("failing_rows"))
-      )
+                      else "Everything looks good.")))
     })
 
     output$checks_table <- DT::renderDT({

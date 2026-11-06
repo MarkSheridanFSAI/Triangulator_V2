@@ -135,15 +135,19 @@ mod_sizes_server <- function(id, data, display = reactive(DEFAULT_DISPLAY)) {
       d <- data()
       req(d)
       selectInput(session$ns("size"), "Band width",
-                  choices = stats::setNames(BUCKET_CHOICES, fmt_amount(BUCKET_CHOICES)),
-                  selected = suggest_bucket_size(d$current))
+                  choices = stats::setNames(format(BUCKET_CHOICES, scientific = FALSE, trim = TRUE),
+                                            fmt_amount(BUCKET_CHOICES)),
+                  selected = format(suggest_bucket_size(d$current), scientific = FALSE, trim = TRUE))
     })
     outputOptions(output, "controls", suspendWhenHidden = FALSE)  # sidebar may be collapsed
     buckets <- reactive({
       d <- data()
       req(d, input$size)
       ds <- display()
-      claim_size_buckets(d$current, d$groupings, as.numeric(input$size), label_fn = function(x) fmt_money(x, ds))
+      size <- as.numeric(input$size)
+      # Enough decimal places to tell bands apart (e.g. 5,000 bands shown in millions).
+      accuracy <- min(10^-ds$digits, 10^floor(log10(size / ds$divisor)))
+      claim_size_buckets(d$current, d$groupings, size, label_fn = function(x) fmt_money(x, ds, accuracy))
     })
     output$chart <- renderPlotly(plot_claim_sizes(buckets()))
     output$table <- DT::renderDT({
