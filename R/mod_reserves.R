@@ -41,7 +41,7 @@ mod_reserves_ui <- function(id) {
   )
 }
 
-mod_reserves_server <- function(id, data) {
+mod_reserves_server <- function(id, data, display = reactive(DEFAULT_DISPLAY)) {
   moduleServer(id, function(input, output, session) {
     components <- reactive({
       d <- data()
@@ -74,14 +74,14 @@ mod_reserves_server <- function(id, data) {
       totals <- tapply(comp$value, comp$metric, sum, na.rm = TRUE)
       values <- stats::setNames(as.numeric(totals[RESERVE_METRICS]), RESERVE_METRICS)
       title <- if (identical(chosen, ALL_GROUPS)) "All groups" else chosen
-      reserve_waterfall(values, title)
+      reserve_waterfall(values, title, display())
     }, res = 96)
 
     output$table <- DT::renderDT({
       d <- data()
       tbl <- reserve_table(components() %>% select(-group), d$groupings)
       if (isTRUE(d$synthetic_grouping)) tbl$`All groups` <- NULL
-      dt_table(tbl, amount_cols = names(tbl)[-1], file_name = "initial_reserves", dom = "Bt",
+      dt_table(tbl, amount_cols = names(tbl)[-1], file_name = "initial_reserves", dom = "Bt", display = display(),
                ordering = FALSE)
     })
   })

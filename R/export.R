@@ -47,6 +47,13 @@ build_report_workbook <- function(d) {
   names(summ)[match(names(SUMMARY_LABELS), names(summ))] <- unname(SUMMARY_LABELS)
   add_sheet("Summary", show_groups(summ), note = "Each claim's latest position.")
 
+  glance <- group_scorecard(d$claims, d$current, d$groupings, suggest_large_threshold(d$current))
+  names(glance) <- unname(GLANCE_LABELS[names(glance)])
+  add_sheet("Groups at a glance", glance,
+            note = paste0("Key diagnostics by group. Large claims: incurred ever above ",
+                          fmt_amount(suggest_large_threshold(d$current)), ". Days to settle: report date to the ",
+                          "first valuation date from which the claim stayed settled."))
+
   sizes <- claim_size_buckets(d$current, d$groupings, suggest_bucket_size(d$current))
   sizes$bucket <- as.character(sizes$bucket)
   names(sizes)[1] <- "Incurred band"

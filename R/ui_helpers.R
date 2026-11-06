@@ -42,6 +42,9 @@ app_css <- function() {
   .placeholder-box { text-align: center; color: var(--bs-secondary-color); padding: 1.5rem; }
   .placeholder-box .fa { font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.6; }
   .tri-page h6 { font-weight: 600; }
+  .display-controls .form-group { margin-bottom: 0; }
+  .glance-high { background: #fde2c4; padding: 0 0.3rem; border-radius: 0.2rem; }
+  .glance-low { background: #d6e4f5; padding: 0 0.3rem; border-radius: 0.2rem; }
   .section-note { color: var(--bs-secondary-color); margin-bottom: 0.75rem; }
   .bslib-value-box .value-box-value { font-size: 1.6rem; }
   .headline-boxes { display: grid; gap: 0.75rem;
@@ -78,21 +81,30 @@ how_it_works <- function() {
 # An interactive table with copy / CSV / Excel buttons. Text is always escaped.
 dt_table <- function(df, amount_cols = NULL, count_cols = NULL, percent_cols = NULL,
                      factor_cols = NULL, file_name = "triangulator_table", page_length = 15,
-                     selection = "none", buttons = TRUE, caption = NULL, ...) {
+                     selection = "none", buttons = TRUE, caption = NULL, display = NULL, ...) {
+  # Amounts follow the dashboard's display settings (thousands, millions, currency).
+  if (length(amount_cols) && !is.null(display)) {
+    for (col in amount_cols) df[[col]] <- df[[col]] / display$divisor
+    if (!is.null(display$note)) caption <- paste(c(caption, paste0(display$note, ".")), collapse = " ")
+  }
   options <- utils::modifyList(
     list(scrollX = TRUE, pageLength = page_length, autoWidth = FALSE,
          dom = if (buttons) "Bfrtip" else "frtip"),
     list(...)
   )
   if (buttons) {
-    options$buttons <- list(list(extend = "copy"),
-                            list(extend = "csv", filename = file_name),
-                            list(extend = "excel", filename = file_name))
+    visible_only <- list(columns = ":visible")
+    options$buttons <- list(list(extend = "copy", exportOptions = visible_only),
+                            list(extend = "csv", filename = file_name, exportOptions = visible_only),
+                            list(extend = "excel", filename = file_name, exportOptions = visible_only))
   }
   out <- DT::datatable(df, rownames = FALSE, selection = selection, escape = TRUE,
                        extensions = if (buttons) "Buttons" else character(0),
                        options = options, caption = caption, class = "compact stripe hover")
-  if (length(amount_cols))  out <- DT::formatRound(out, amount_cols, digits = 0)
+  if (length(amount_cols)) {
+    out <- if (is.null(display)) DT::formatRound(out, amount_cols, digits = 0)
+           else DT::formatCurrency(out, amount_cols, currency = display$symbol, digits = display$digits)
+  }
   if (length(count_cols))   out <- DT::formatRound(out, count_cols, digits = 0)
   if (length(percent_cols)) out <- DT::formatPercentage(out, percent_cols, digits = 1)
   if (length(factor_cols))  out <- DT::formatRound(out, factor_cols, digits = 3)
@@ -115,6 +127,7 @@ readable_dates <- function(df) {
 dt_by_kind <- function(df, value_cols, kind, ...) {
   switch(kind,
          percent = dt_table(df, percent_cols = value_cols, ...),
+         difference = dt_table(df, percent_cols = value_cols, ...),
          factor  = dt_table(df, factor_cols = value_cols, ...),
          count   = dt_table(df, count_cols = value_cols, ...),
          dt_table(df, amount_cols = value_cols, ...))
@@ -134,9 +147,16 @@ dashboard_placeholder_ui <- function() {
       )))
 }
 
-dashboard_ui <- function() {
+dashboard_ui <- function(units = NULL, currency = NULL) {
   div(class = "tri-page",
       uiOutput("dashboard_header"),
+      div(class = "d-flex flex-wrap justify-content-between align-items-center gap-3 my-3",
+          uiOutput("data_source", inline = TRUE),
+          div(class = "display-controls d-flex flex-wrap align-items-center gap-2",
+              tags$span(class = "small text-muted", "Show amounts as"),
+              selectInput("units", NULL, UNIT_CHOICES, selected = units %||% "1", width = "160px"),
+              selectInput("currency", NULL, CURRENCY_CHOICES, selected = currency %||% "", width = "130px"),
+              downloadButton("download_report", "Download Excel report", class = "btn-primary"))),
       navset_underline(
         id = "dashboard_tabs",
         nav_panel("Summary", icon = icon("gauge"), div(class = "pt-3", mod_summary_ui("summary"))),
@@ -156,6 +176,7 @@ GLOSSARY <- list(
   "Paid / Incurred / Outstanding" = "Paid is the total paid so far. Outstanding is the case estimate still held. Incurred is paid plus outstanding.",
   "Settled claim" = "A claim whose outstanding case estimate is zero.",
   "Development factor (link ratio)" = "The value in one development period divided by the value in the period before. It shows how much a cohort of claims grew.",
+  "Development pattern" = "How much of the final (ultimate) amount has typically been reached after each development period. A group whose pattern sits lower develops more slowly.",
   "Chain-ladder" = "A standard method that uses average development factors to project each origin period to its expected final ('ultimate') value.",
   "IBNER" = "Incurred But Not Enough Reported: expected growth on claims already reported.",
   "IBNR" = "Incurred But Not Reported: claims that have already happened but haven't been reported yet.",

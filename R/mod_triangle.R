@@ -37,7 +37,17 @@ mod_triangle_ui <- function(id) {
                        "Rows are origin periods, columns are development periods. ",
                        "A red circle marks a value more than 3 standard deviations from the average of ",
                        "its development period - worth a closer look.")),
-      nav_panel("Table", DT::DTOutput(ns("grid")))
+      nav_panel("Table", DT::DTOutput(ns("grid"))),
+      nav_panel("Development pattern by group",
+                radioButtons(ns("pattern_measure"), NULL, PATTERN_CHOICES, selected = "ITOT", inline = TRUE),
+                plotlyOutput(ns("pattern"), height = "460px"),
+                tags$p(class = "small text-muted mt-2 mb-0",
+                       "Each line shows how much of the projected final (ultimate) amount has been reached ",
+                       "by each development period, using that group's chain-ladder development factors. ",
+                       "A line that sits lower is developing more slowly. Above 100% means amounts tend to ",
+                       "fall later on (for example where case estimates are set cautiously). ",
+                       "Uses the origin basis, period length and large-claim setting on the left; ",
+                       "the group filters don't apply here."))
     ),
     card(
       card_header(class = "tri-heading", "What changed in one cell?"),
@@ -55,7 +65,7 @@ mod_triangle_ui <- function(id) {
   )
 }
 
-mod_triangle_server <- function(id, data) {
+mod_triangle_server <- function(id, data, display = reactive(DEFAULT_DISPLAY)) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     cache <- new.env(parent = emptyenv())   # triangles without large claims, kept for re-use
@@ -64,13 +74,16 @@ mod_triangle_server <- function(id, data) {
       d <- data()
       req(d)
       if (isTRUE(d$synthetic_grouping)) return(NULL)
-      lapply(seq_along(d$groupings), function(i) {
-        g <- d$groupings[i]
-        values <- sort(unique(d$claims[[g]]))
-        selectInput(ns(paste0("group_", i)), g,
-                    choices = c("All (combined)" = ALL_GROUPS, stats::setNames(values, values)),
-                    selected = ALL_GROUPS)
-      })
+      tagList(
+        lapply(seq_along(d$groupings), function(i) {
+          g <- d$groupings[i]
+          values <- sort(unique(d$claims[[g]]))
+          selectInput(ns(paste0("group_", i)), g,
+                      choices = c("All (combined)" = ALL_GROUPS, stats::setNames(values, values)),
+                      selected = ALL_GROUPS)
+        }),
+        checkboxInput(ns("compare"), "Compare the chosen group with all groups", value = FALSE)
+      )
     })
 
     selection <- reactive({
@@ -120,6 +133,19 @@ mod_triangle_server <- function(id, data) {
 
     shown <- reactive(select_groups(full_triangles(), data()$groupings, selection()))
 
+    # What the heatmap and table show: the triangle itself, or (when comparing) each
+    # cell relative to the same cell for all groups.
+    comparing <- reactive(isTRUE(input$compare) && !isTRUE(data()$synthetic_grouping))
+    shown_values <- reactive({
+      if (!comparing()) return(shown())
+      sel <- selection()
+      validate(need(any(!vapply(sel, identical, logical(1), ALL_GROUPS)),
+                    "Choose a group in the filters on the left to compare it with all groups."))
+      all_groups <- select_groups(full_triangles(), data()$groupings, list())
+      compare_triangles(shown(), all_groups, input$measure)
+    })
+    shown_kind <- reactive(if (comparing()) relative_kind(input$measure) else measure_kind(input$measure))
+
     # The sidebar starts collapsed on phones; build its controls even while hidden.
     outputOptions(output, "group_controls", suspendWhenHidden = FALSE)
     outputOptions(output, "threshold_ui", suspendWhenHidden = FALSE)
@@ -129,17 +155,25 @@ mod_triangle_server <- function(id, data) {
       paste0(measure_label(input$measure), " - ",
              names(BASIS_CHOICES)[BASIS_CHOICES == input$basis], ", ",
              tolower(names(PERIOD_CHOICES)[PERIOD_CHOICES == input$time]),
-             if (isTRUE(input$exclude_large)) " - large claims left out" else "")
+             if (isTRUE(input$exclude_large)) " - large claims left out" else "",
+             if (comparing()) paste0(" - ", relative_label(input$measure)) else "")
     })
 
-    output$heatmap <- renderPlotly(plot_triangle_heatmap(shown(), input$measure, input$time))
+    output$heatmap <- renderPlotly({
+      plot_triangle_heatmap(shown_values(), input$measure, input$time, display(), kind = shown_kind())
+    })
 
     output$grid <- DT::renderDT({
-      grid <- triangle_grid(shown(), input$measure, input$time)
+      grid <- triangle_grid(shown_values(), input$measure, input$time)
       names(grid)[1] <- "Origin"
-      dt_by_kind(grid, names(grid)[-1], measure_kind(input$measure), file_name = "triangle",
+      dt_by_kind(grid, names(grid)[-1], shown_kind(), file_name = "triangle", display = display(),
                  page_length = 50, ordering = FALSE,
                  caption = "Rows: origin period. Columns: development period.")
+    })
+
+    output$pattern <- renderPlotly({
+      req(input$pattern_measure)
+      plot_development_pattern(development_pattern(full_triangles(), data()$groupings, input$pattern_measure))
     })
 
     # ---- Drill-down ----
@@ -179,8 +213,8 @@ mod_triangle_server <- function(id, data) {
       bold <- function(...) tags$strong(..., .noWS = "outside")
       div(class = "alert alert-light",
           bold(scales::comma(nrow(m)), if (nrow(m) == 1) " claim" else " claims"), " changed. ",
-          "Incurred moved by ", bold(fmt_amount(sum(m$ITOT_movement))),
-          " and paid by ", bold(fmt_amount(sum(m$PTOT_movement))), ". ",
+          "Incurred moved by ", bold(fmt_money(sum(m$ITOT_movement), display())),
+          " and paid by ", bold(fmt_money(sum(m$PTOT_movement), display())), ". ",
           fmt_amount(sum(m$NTOT_movement)), " new claim(s) and ",
           fmt_amount(sum(m$STOT_movement)), " net newly settled.")
     })
@@ -193,6 +227,7 @@ mod_triangle_server <- function(id, data) {
       names(tbl)[match(names(MOVEMENT_LABELS), names(tbl))] <- unname(MOVEMENT_LABELS)
       out <- dt_table(tbl,
                       amount_cols = unname(MOVEMENT_LABELS[c("ITOT_movement", "PTOT_movement")]),
+                      display = display(),
                       count_cols = unname(MOVEMENT_LABELS[c("NTOT_movement", "STOT_movement")]),
                       percent_cols = unname(MOVEMENT_LABELS[c("share_of_change", "percent_change")]),
                       selection = "single", page_length = 10, file_name = "claim_movements")
@@ -233,7 +268,7 @@ mod_triangle_server <- function(id, data) {
                   `Report date` = format(date_reported),
                   Paid = paid, `Case estimate` = case, Incurred = ITOT,
                   `Row in your file` = row_in_file + 1L)
-      dt_table(hist, amount_cols = c("Paid", "Case estimate", "Incurred"), page_length = 25,
+      dt_table(hist, amount_cols = c("Paid", "Case estimate", "Incurred"), page_length = 25, display = display(),
                file_name = paste0("claim_", claim), ordering = FALSE)
     })
   })

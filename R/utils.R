@@ -100,11 +100,31 @@ measure_kind <- function(code) {
 
 # Format numbers for display.
 fmt_amount <- function(x) scales::comma(x, accuracy = 1)
-fmt_value <- function(x, kind) {
-  switch(kind,
-         percent = scales::percent(x, accuracy = 0.1),
-         factor  = scales::number(x, accuracy = 0.001),
-         fmt_amount(x))
+
+# ---- How amounts are shown (chosen at the top of the dashboard) -----------------
+
+UNIT_CHOICES <- c("Full amounts" = "1", "Thousands (k)" = "1000", "Millions (m)" = "1000000")
+CURRENCY_CHOICES <- c("No symbol" = "", "£" = "£", "€" = "€", "$" = "$")
+
+display_settings <- function(divisor = 1, symbol = "") {
+  divisor <- suppressWarnings(as.numeric(divisor))
+  if (length(divisor) != 1 || is.na(divisor) || divisor <= 0) divisor <- 1
+  symbol <- if (is.null(symbol) || is.na(symbol)) "" else as.character(symbol)
+  word <- if (divisor == 1e6) "millions" else if (divisor == 1e3) "thousands" else ""
+  note <- if (divisor == 1 && symbol == "") NULL
+          else paste("Amounts in", paste(c(if (symbol != "") symbol, if (word != "") word), collapse = " "))
+  list(divisor = divisor, symbol = symbol,
+       suffix = if (divisor == 1e6) "m" else if (divisor == 1e3) "k" else "",
+       digits = if (divisor > 1) 1 else 0, note = note)
+}
+DEFAULT_DISPLAY <- display_settings()
+
+# An amount as text, e.g. "£1,234", "£1.2k" or "-£3.4m".
+fmt_money <- function(x, ds = DEFAULT_DISPLAY) {
+  out <- paste0(ifelse(x < 0, "-", ""), ds$symbol,
+                scales::comma(abs(x) / ds$divisor, accuracy = 10^-ds$digits), ds$suffix)
+  out[is.na(x)] <- ""
+  out
 }
 
 # Turn an origin code (e.g. 202303) into a readable label ("2023-03", "2023 Q1", "2023").

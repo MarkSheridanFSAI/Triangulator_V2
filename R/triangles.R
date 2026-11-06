@@ -16,8 +16,9 @@ BASE_VARIABLES <- c("PTOT", "ITOT", "NTOT", "STOT")
 
 # Period number for a date. Consecutive periods have consecutive numbers.
 period_index <- function(date, time) {
-  year <- as.integer(format(date, "%Y"))
-  month <- as.integer(format(date, "%m"))
+  parts <- as.POSIXlt(date)
+  year <- parts$year + 1900L
+  month <- parts$mon + 1L
   switch(time,
          monthly   = year * 12L + month - 1L,
          quarterly = year * 4L + (month - 1L) %/% 3L,
@@ -47,19 +48,32 @@ claim_snapshots <- function(claims, basis, time) {
                    period_index(d[[basis_col]], time), na.rm = TRUE)
   d$origin_index <- period_index(d[[basis_col]], time)
   d$stamp_index  <- period_index(d$date_stamp, time)
-  d <- d %>%
-    arrange(claim_id, date_stamp) %>%
-    group_by(claim_id, stamp_index) %>%
-    slice_tail(n = 1) %>%
-    ungroup() %>%
-    arrange(claim_id, date_stamp) %>%
-    group_by(claim_id) %>%
-    mutate(development    = stamp_index - origin_index + 1L,
-           development_to = coalesce(lead(development) - 1L, valuation - origin_index + 1L)) %>%
-    ungroup() %>%
-    mutate(origin = period_label(origin_index, time))
+  # Sort each claim's rows by valuation date (file order breaks ties), then keep
+  # the last row in each period. (Plain vector steps: much faster than grouping
+  # when there are hundreds of thousands of claims.)
+  d <- sort_by_claim(d)
+  d <- d[!(same_as_next(d$claim_id) & same_as_next(d$stamp_index)), ]
+  d$development <- d$stamp_index - d$origin_index + 1L
+  next_dev <- c(d$development[-1], NA_integer_)
+  d$development_to <- ifelse(same_as_next(d$claim_id), next_dev - 1L,
+                             valuation - d$origin_index + 1L)
+  d$origin <- period_label(d$origin_index, time)
+  d <- dplyr::as_tibble(d)
   attr(d, "valuation_index") <- valuation
   d
+}
+
+# Rows sorted by claim, then valuation date, then position in the file.
+sort_by_claim <- function(d) {
+  file_order <- if ("row_in_file" %in% names(d)) d$row_in_file else seq_len(nrow(d))
+  d[order(d$claim_id, d$date_stamp, file_order, method = "radix"), , drop = FALSE]
+}
+
+# TRUE where the next element is the same as this one (FALSE for the last).
+same_as_next <- function(x) {
+  n <- length(x)
+  if (n < 2) return(rep(FALSE, n))
+  c(x[-1] == x[-n], FALSE)
 }
 
 # Claims that are ever above the large-loss threshold (incurred).
@@ -193,11 +207,15 @@ claim_movements <- function(claims, groupings, basis, time, large_loss = Inf) {
   snaps <- claim_snapshots(claims, basis, time)
   if (is.null(snaps)) return(NULL)
   large <- large_claim_ids(snaps, large_loss)
-  snaps %>%
-    filter(!claim_id %in% large) %>%
-    group_by(claim_id) %>%
-    mutate(across(all_of(BASE_VARIABLES), ~ .x - coalesce(lag(.x), 0), .names = "{.col}_movement")) %>%
-    ungroup()
+  snaps <- snaps[!snaps$claim_id %in% large, ]
+  # Snapshots are sorted by claim, so "previous row of the same claim" is a shift.
+  same_as_previous <- c(FALSE, same_as_next(snaps$claim_id)[-nrow(snaps)])
+  for (v in BASE_VARIABLES) {
+    previous <- c(0, snaps[[v]][-nrow(snaps)])
+    previous[!same_as_previous] <- 0
+    snaps[[paste0(v, "_movement")]] <- snaps[[v]] - previous
+  }
+  snaps
 }
 
 # The claims that moved in one cell of the triangle, biggest change first.

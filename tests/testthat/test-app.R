@@ -75,7 +75,7 @@ test_that("the Excel report can be built, including with no grouping columns", {
   openxlsx::saveWorkbook(build_report_workbook(d), path)
   sheets <- openxlsx::getSheetNames(path)
   expect_true(all(c("About", "Data checks", "Summary", "Claim sizes", "Reserves quarterly",
-                    "Reserve ranges", "incident_quarterly") %in% sheets))
+                    "Reserve ranges", "Groups at a glance", "incident_quarterly") %in% sheets))
 
   s <- sample_prepared()
   fin <- finalise_claims(s$std, character(0))

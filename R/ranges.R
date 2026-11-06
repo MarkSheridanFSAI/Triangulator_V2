@@ -34,12 +34,12 @@ mack_chain_ladder <- function(m) {
 
   # Development factors (volume-weighted, the same as the Reserves tab) and their
   # variance parameters sigma^2.
-  f <- sigma2 <- column_total <- rep(NA_real_, n_dev - 1)
+  factors <- development_factors(m)
+  f <- factors$factor
+  column_total <- factors$column_total
+  sigma2 <- rep(NA_real_, n_dev - 1)
   for (k in seq_len(n_dev - 1)) {
     obs <- which(!is.na(m[, k + 1]) & !is.na(m[, k]))
-    column_total[k] <- sum(m[obs, k])
-    f[k] <- sum(m[obs, k + 1]) / column_total[k]
-    if (!is.finite(f[k])) f[k] <- 1
     use <- obs[m[obs, k] > 0]
     if (length(use) >= 2) {
       ratios <- m[use, k + 1] / m[use, k]

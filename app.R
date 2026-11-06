@@ -57,35 +57,39 @@ server <- function(input, output, session) {
   })
 
   output$dashboard <- renderUI({
-    if (is.null(app_data())) dashboard_placeholder_ui() else dashboard_ui()
+    if (is.null(app_data())) dashboard_placeholder_ui()
+    else dashboard_ui(units = isolate(input$units), currency = isolate(input$currency))
   })
   observeEvent(input$go_import, nav_select("main_nav", "import"))
+
+  # How amounts are shown everywhere on the dashboard (full, thousands, millions; currency).
+  display <- reactive(display_settings(input$units %||% "1", input$currency %||% ""))
 
   output$dashboard_header <- renderUI({
     d <- app_data()
     req(d)
     h <- headline_figures(d$current, d$claims)
-    tagList(
-      div(
-        class = "headline-boxes",
-        value_box("Claims", scales::comma(h$claims)),
-        value_box("Open claims", scales::comma(h$open)),
-        value_box("Paid to date", fmt_amount(h$paid)),
-        value_box("Incurred", fmt_amount(h$incurred)),
-        value_box("Latest valuation", format(h$valuation, "%d %b %Y"))
-      ),
-      div(class = "d-flex flex-wrap justify-content-between align-items-center gap-2 my-3",
-          tags$span(class = "text-muted", "Data from ", tags$strong(d$file_name)),
-          downloadButton("download_report", "Download Excel report", class = "btn-primary"))
+    div(
+      class = "headline-boxes",
+      value_box("Claims", scales::comma(h$claims)),
+      value_box("Open claims", scales::comma(h$open)),
+      value_box("Paid to date", fmt_money(h$paid, display())),
+      value_box("Incurred", fmt_money(h$incurred, display())),
+      value_box("Latest valuation", format(h$valuation, "%d %b %Y"))
     )
   })
+  output$data_source <- renderUI({
+    d <- app_data()
+    req(d)
+    tags$span(class = "text-muted", "Data from ", tags$strong(d$file_name))
+  })
 
-  mod_summary_server("summary", app_data)
-  mod_sizes_server("sizes", app_data)
-  mod_origin_server("origin", app_data)
-  mod_triangle_server("triangle", app_data)
-  mod_reserves_server("reserves", app_data)
-  mod_ranges_server("ranges", app_data)
+  mod_summary_server("summary", app_data, display)
+  mod_sizes_server("sizes", app_data, display)
+  mod_origin_server("origin", app_data, display)
+  mod_triangle_server("triangle", app_data, display)
+  mod_reserves_server("reserves", app_data, display)
+  mod_ranges_server("ranges", app_data, display)
 
   output$download_report <- downloadHandler(
     filename = function() paste0("Triangulator_report_", format(Sys.Date(), "%Y-%m-%d"), ".xlsx"),

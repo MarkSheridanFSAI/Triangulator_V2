@@ -83,7 +83,7 @@ mod_ranges_ui <- function(id) {
   )
 }
 
-mod_ranges_server <- function(id, data) {
+mod_ranges_server <- function(id, data, display = reactive(DEFAULT_DISPLAY)) {
   moduleServer(id, function(input, output, session) {
     output$group_ui <- renderUI({
       d <- data()
@@ -130,11 +130,11 @@ mod_ranges_server <- function(id, data) {
             "The uncertainty percentage isn't meaningful for a negative reserve, so it shows n/a.")
       },
       div(class = "headline-boxes mb-3",
-          value_box("Best estimate reserve", fmt_amount(tot$reserve)),
-          value_box("Standard error", fmt_amount(tot$std_error)),
+          value_box("Best estimate reserve", fmt_money(tot$reserve, display())),
+          value_box("Standard error", fmt_money(tot$std_error, display())),
           value_box("Uncertainty (CV)", if (is.na(tot$cv)) "n/a" else scales::percent(tot$cv, accuracy = 1)),
-          value_box("75th percentile", fmt_amount(pct$reserve[pct$percentile == 0.75])),
-          value_box("99.5th percentile", fmt_amount(pct$reserve[pct$percentile == 0.995]))))
+          value_box("75th percentile", fmt_money(pct$reserve[pct$percentile == 0.75], display())),
+          value_box("99.5th percentile", fmt_money(pct$reserve[pct$percentile == 0.995], display()))))
     })
 
     output$comparison <- renderUI({
@@ -155,27 +155,28 @@ mod_ranges_server <- function(id, data) {
                  bold("Compared with the Reserves tab: "),
                  paste0("the matching figure there (", paste(labels, collapse = " + "), ", ",
                         tolower(names(PERIOD_CHOICES)[PERIOD_CHOICES == input$time]), ") is "),
-                 bold(fmt_amount(cmp$reserves_tab)),
+                 bold(fmt_money(cmp$reserves_tab, display())),
                  if (matches) ". This tab's best estimate matches it."
-                 else tagList(". This tab's best estimate is ", bold(fmt_amount(abs(cmp$difference))),
+                 else tagList(". This tab's best estimate is ", bold(fmt_money(abs(cmp$difference), display())),
                               paste0(if (cmp$difference > 0) " higher" else " lower", ". Why:"))),
           if (!matches) tags$ul(class = "mb-0 small", lapply(cmp$reasons, tags$li)))
     })
 
     output$distribution <- renderPlotly({
       r <- ranges()
-      plot_reserve_distribution(r$total$reserve, r$total$std_error, r$percentiles)
+      plot_reserve_distribution(r$total$reserve, r$total$std_error, r$percentiles, display())
     })
 
     output$by_origin <- renderPlotly({
       r <- ranges()
-      plot_reserve_by_origin(r$by_origin, r$time)
+      plot_reserve_by_origin(r$by_origin, r$time, display())
     })
 
     output$percentiles <- DT::renderDT({
       p <- ranges()$percentiles
       tbl <- dplyr::tibble(Percentile = p$label, Reserve = p$reserve)
-      dt_table(tbl, amount_cols = "Reserve", dom = "Bt", ordering = FALSE, file_name = "reserve_percentiles")
+      dt_table(tbl, amount_cols = "Reserve", dom = "Bt", ordering = FALSE, file_name = "reserve_percentiles",
+               display = display())
     })
 
     output$table <- DT::renderDT({
@@ -186,7 +187,7 @@ mod_ranges_server <- function(id, data) {
       total <- r$total %>% mutate(origin = "Total") %>% select(names(RANGE_COLUMN_LABELS))
       tbl <- bind_rows(tbl, total)
       names(tbl) <- unname(RANGE_COLUMN_LABELS)
-      dt_table(tbl, amount_cols = c("Latest value", "Ultimate", "Reserve", "Standard error"),
+      dt_table(tbl, amount_cols = c("Latest value", "Ultimate", "Reserve", "Standard error"), display = display(),
                percent_cols = "Uncertainty (CV)", page_length = 50, ordering = FALSE,
                file_name = "reserve_ranges")
     })

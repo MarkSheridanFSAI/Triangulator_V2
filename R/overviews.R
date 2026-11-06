@@ -2,11 +2,8 @@
 
 # Each claim's latest position (its last row at its latest valuation date).
 current_positions <- function(claims) {
-  claims %>%
-    arrange(claim_id, date_stamp) %>%
-    group_by(claim_id) %>%
-    slice_tail(n = 1) %>%
-    ungroup()
+  d <- sort_by_claim(claims)
+  d[!same_as_next(d$claim_id), ]
 }
 
 safe_mean <- function(x) if (length(x)) mean(x) else NA_real_
@@ -58,7 +55,7 @@ suggest_bucket_size <- function(current) {
 
 # Number of claims in each incurred size band, per group (wide table).
 # Bands include their upper limit: 0 - 5,000 holds claims from 0 up to 5,000.
-claim_size_buckets <- function(current, groupings, size, max_buckets = 200) {
+claim_size_buckets <- function(current, groupings, size, max_buckets = 200, label_fn = fmt_amount) {
   size <- as.numeric(size)
   if (is.na(size) || size <= 0) stop_friendly("The bucket size must be a positive number.")
   inc <- current$ITOT
@@ -68,8 +65,8 @@ claim_size_buckets <- function(current, groupings, size, max_buckets = 200) {
   n_buckets <- min(top + 1, max_buckets)
   k <- pmin(k, n_buckets - 1)
   lower <- (seq_len(n_buckets) - 1) * size
-  labels <- paste(fmt_amount(lower), "-", fmt_amount(lower + size))
-  if (top + 1 > max_buckets) labels[n_buckets] <- paste0(fmt_amount(lower[n_buckets]), " and above")
+  labels <- paste(label_fn(lower), "-", label_fn(lower + size))
+  if (top + 1 > max_buckets) labels[n_buckets] <- paste0(label_fn(lower[n_buckets]), " and above")
   levels <- c(if (any(negative)) "Below 0", labels)
   bucket <- factor(ifelse(negative, "Below 0", labels[k + 1]), levels = levels)
 

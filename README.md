@@ -17,15 +17,19 @@ claims development triangles, summaries and first-look reserve estimates for you
 - **Import:** reads Excel or CSV files, guesses which column is which, and checks your
   data for common problems (with the exact rows to look at).
 - **Summary:** paid, outstanding and incurred amounts, open and settled claims, and average claim sizes for each group.
+  **Groups at a glance** puts each group's key diagnostics side by side (average claim, % settled,
+  paid % of incurred, share of large claims, days to report and days to settle) and shades the highest and lowest.
 - **Claim sizes:** how many claims fall into each size band.
 - **Origin analysis:** where each origin period stands at the latest valuation.
 - **Triangles:** heatmaps and tables on accident, reported or underwriting basis
   (monthly, quarterly or yearly), for any measure, optionally without large claims.
   Drill into any cell to see which claims moved, and into any claim's full history.
+  Compare a group with all groups, and see each group's **development pattern** on one chart.
 - **Reserves:** a basic chain-ladder estimate split into case reserves, IBNER, IBNR and unexpired risk.
 - **Reserve ranges:** how uncertain the reserve is (Mack's method): standard error, percentiles
   and a chart of the likely range of outcomes.
 - **Excel report:** everything in one workbook.
+- Amounts can be shown in full, in thousands or in millions, with a £, € or $ symbol.
 
 The reserve figures are automatic first estimates. Don't rely on them for booking reserves.
 

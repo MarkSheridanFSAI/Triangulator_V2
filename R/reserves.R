@@ -100,20 +100,23 @@ reserve_table <- function(components, groupings) {
 }
 
 # Waterfall chart for one group (or the total of all groups).
-reserve_waterfall <- function(values, title) {
+reserve_waterfall <- function(values, title, ds = DEFAULT_DISPLAY) {
   values[is.na(values)] <- 0
+  labels_text <- fmt_money(unname(values), ds)
+  total_text <- fmt_money(sum(values), ds)
+  values <- values / ds$divisor
   short_labels <- c(PAID = "Paid", CASE = "Case", IBNER = "IBNER", IBNR = "IBNR", URR = "URR")
   waterfalls::waterfall(
     values = unname(values), labels = unname(short_labels[names(values)]),
-    rect_text_labels = fmt_amount(unname(values)),
+    rect_text_labels = labels_text,
     calc_total = TRUE, total_axis_text = "Ultimate",
-    total_rect_text = fmt_amount(sum(values)),
+    total_rect_text = total_text,
     fill_by_sign = FALSE,
     fill_colours = c("#9db4d9", "#c3d3ea", "#f2c98a", "#f0a58a", "#a8d5b0")[seq_along(values)],
     total_rect_color = "#d9dee5", total_rect_border_color = "#555555",
     total_rect_text_color = "black", rect_border = "#555555", rect_text_size = 1.2
   ) +
-    ggplot2::scale_y_continuous(labels = scales::comma) +
+    ggplot2::scale_y_continuous(labels = scales::label_comma(prefix = ds$symbol, suffix = ds$suffix)) +
     ggplot2::labs(title = title, x = NULL, y = NULL) +
     ggplot2::theme_minimal(base_size = 14) +
     ggplot2::theme(plot.title = ggplot2::element_text(face = "bold", hjust = 0.5))
