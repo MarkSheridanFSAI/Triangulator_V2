@@ -64,10 +64,16 @@ reserve_components <- function(triangles, groupings, time) {
   get_tri <- function(basis) {
     tri <- triangles[[paste(basis, time, sep = "_")]]
     if (is.null(tri)) {
-      stop_friendly("Reserves need every row to have a policy start, incident and report date. ",
-                    "The ", names(BASIS_CHOICES)[BASIS_CHOICES == basis], " triangle is empty.")
+      stop_friendly("Reserve estimates need an incident date and a report date for each claim. ",
+                    "Your data doesn't have ", if (basis == "incident") "incident" else "report", " dates.")
     }
     tri
+  }
+  # Without policy start dates there's no underwriting triangle, so URR is left blank.
+  underwriting_ult <- if (is.null(triangles[[paste("underwriting", time, sep = "_")]])) {
+    latest_total(get_tri("reporting"), groupings, "ITOT") %>% mutate(total = NA_real_)
+  } else {
+    ultimate_total(get_tri("underwriting"), groupings)
   }
   reporting <- get_tri("reporting")
   by <- groupings
@@ -75,7 +81,7 @@ reserve_components <- function(triangles, groupings, time) {
     left_join(latest_total(reporting, by, "PTOT") %>% rename(PAID = total), by = by) %>%
     left_join(ultimate_total(reporting, by) %>% rename(reporting_ult = total), by = by) %>%
     left_join(ultimate_total(get_tri("incident"), by) %>% rename(incident_ult = total), by = by) %>%
-    left_join(ultimate_total(get_tri("underwriting"), by) %>% rename(underwriting_ult = total), by = by) %>%
+    left_join(underwriting_ult %>% rename(underwriting_ult = total), by = by) %>%
     mutate(CASE  = INCURRED - PAID,
            IBNER = reporting_ult - INCURRED,
            IBNR  = incident_ult - reporting_ult,
@@ -93,7 +99,7 @@ reserve_table <- function(components, groupings) {
     tidyr::pivot_wider(names_from = group, values_from = value) %>%
     arrange(metric)
   wide$`All groups` <- rowSums(wide[, -1, drop = FALSE])
-  totals <- wide %>% summarise(across(-metric, sum))
+  totals <- wide %>% summarise(across(-metric, ~ sum(.x, na.rm = TRUE)))
   wide$metric <- unname(RESERVE_LABELS[as.character(wide$metric)])
   bind_rows(wide, dplyr::tibble(metric = "Ultimate (total)") %>% bind_cols(totals)) %>%
     rename(Component = metric)
@@ -101,7 +107,7 @@ reserve_table <- function(components, groupings) {
 
 # Waterfall chart for one group (or the total of all groups).
 reserve_waterfall <- function(values, title, ds = DEFAULT_DISPLAY) {
-  values[is.na(values)] <- 0
+  values <- values[!is.na(values)]   # e.g. URR when there are no policy start dates
   labels_text <- fmt_money(unname(values), ds)
   total_text <- fmt_money(sum(values), ds)
   values <- values / ds$divisor
@@ -112,7 +118,8 @@ reserve_waterfall <- function(values, title, ds = DEFAULT_DISPLAY) {
     calc_total = TRUE, total_axis_text = "Ultimate",
     total_rect_text = total_text,
     fill_by_sign = FALSE,
-    fill_colours = c("#9db4d9", "#c3d3ea", "#f2c98a", "#f0a58a", "#a8d5b0")[seq_along(values)],
+    fill_colours = unname(c(PAID = "#9db4d9", CASE = "#c3d3ea", IBNER = "#f2c98a", IBNR = "#f0a58a",
+                            URR = "#a8d5b0")[names(values)]),
     total_rect_color = "#d9dee5", total_rect_border_color = "#555555",
     total_rect_text_color = "black", rect_border = "#555555", rect_text_size = 1.2
   ) +

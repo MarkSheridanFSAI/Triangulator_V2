@@ -118,3 +118,36 @@ test_that("blank amounts and groupings are filled in when finalising", {
   expect_equal(fin$STOT[1], 1)
   expect_equal(fin$line[2], "(blank)")
 })
+
+test_that("policy ID and policy start date are optional", {
+  raw <- tiny_claims()
+  m <- tiny_mapping()
+  m$policy_id <- ""
+  m$date_issue <- ""
+  expect_length(validate_mapping(raw, m), 0)
+  res <- check_upload(raw, m)
+  expect_equal(res$status, "checked")
+  expect_true(all(is.na(res$std$policy_id)))
+  expect_true(all(is.na(res$std$date_issue)))
+  # checks on the missing columns are skipped rather than failing every row
+  expect_false(any(grepl("Policy", res$checks$summary$check)))
+  expect_equal(res$checks$n_warnings, 0)
+})
+
+test_that("bordereau-style headings are recognised", {
+  df <- data.frame("Claim Ref" = 1, "Policy Number" = 1, "Date of Loss" = 1, "Date Notified" = 1,
+                   "Bordereau Date" = 1, "Inception Date" = 1, "Paid to Date" = 1, "O/S Reserve" = 1,
+                   "Class" = "a", check.names = FALSE)
+  m <- guess_mapping(df)
+  expect_equal(unlist(m[SINGLE_FIELDS]),
+               c(claim_id = "Claim Ref", policy_id = "Policy Number", date_stamp = "Bordereau Date",
+                 date_issue = "Inception Date", date_incident = "Date of Loss", date_reported = "Date Notified",
+                 paid = "Paid to Date", case = "O/S Reserve"))
+})
+
+test_that("a single bordereau (one valuation date) is spotted", {
+  raw <- tiny_claims()
+  raw <- raw[raw$valued == max(raw$valued), ]
+  res <- check_upload(raw, tiny_mapping())
+  expect_equal(res$valuation_dates, 1)
+})

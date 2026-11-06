@@ -12,7 +12,7 @@ tidy <- function(d) {
 
 test_that("the sample data's columns are guessed correctly", {
   s <- sample_prepared()
-  expected <- read_mapping_file(file.path(project_root, "www", "variable_selections (for sample database).csv"),
+  expected <- read_mapping_file(app_path("www", "sample_column_mapping.csv"),
                                 names(s$raw))
   expect_length(expected$problems, 0)
   expect_equal(s$mapping[SINGLE_FIELDS], expected$mapping[SINGLE_FIELDS])

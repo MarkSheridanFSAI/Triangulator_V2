@@ -1,7 +1,7 @@
 # Import page: upload -> match columns -> check data -> build ----------------------
 
 SAMPLE_DATA_FILE <- "sample_database.xlsx"
-SAMPLE_MAPPING_FILE <- "variable_selections (for sample database).csv"
+SAMPLE_MAPPING_FILE <- "sample_column_mapping.csv"
 
 # Check the mapping, convert the columns and run the data checks.
 # Returns list(status = "mapping", problems) or list(status = "checked", ...).
@@ -11,10 +11,12 @@ check_upload <- function(df, mapping) {
   std <- standardise_claims(df, mapping)
   if (length(std$problems)) return(list(status = "mapping", problems = std$problems))
   groupings <- mapping$groupings
+  provided <- SINGLE_FIELDS[vapply(SINGLE_FIELDS, function(f) (mapping[[f]] %||% "") != "", logical(1))]
   list(
     status = "checked",
     std = std$data,
-    checks = run_data_checks(std$data),
+    checks = run_data_checks(std$data, provided),
+    valuation_dates = dplyr::n_distinct(std$data$date_stamp, na.rm = TRUE),
     mapping = mapping,
     combinations = if (length(groupings)) nrow(dplyr::distinct(std$data[groupings])) else 1
   )
@@ -24,14 +26,20 @@ mod_import_ui <- function(id) {
   ns <- NS(id)
   div(
     class = "tri-page",
+    div(class = "import-lead",
+        tags$h4("Quick claims analysis, no coding needed"),
+        tags$p("Upload a claims listing or a set of bordereaux and Triangulator gives you instant diagnostics: ",
+               "where your claims stand, how they compare across groups, how they develop over time, and a ",
+               "first look at reserves. Your data stays on your computer.")),
     how_it_works(),
     card(
       class = "mb-4",
       step_header(1, "Upload your claims data"),
       card_body(
-        tags$p("Triangulator needs a ", tags$strong("line-by-line"),
-               " claims file: one row for each claim at each date its figures were recorded. ",
-               "Excel (.xlsx or .xls) or CSV, up to 100 MB."),
+        fillable = FALSE,
+        tags$p("Use a ", tags$strong("line-by-line"), " claims file: one row per claim, with its paid and ",
+               "outstanding amounts. To see how claims develop over time, include each claim at several dates ",
+               "(for example, monthly bordereaux combined into one file). Excel (.xlsx or .xls) or CSV, up to 100 MB."),
         layout_columns(
           col_widths = breakpoints(sm = 12, md = c(7, 5)),
           fileInput(ns("file"), "Choose your file", accept = c(".xlsx", ".xls", ".csv"), width = "100%"),
@@ -40,7 +48,7 @@ mod_import_ui <- function(id) {
                            class = "btn-outline-primary w-100"),
               div(class = "small text-muted mt-2",
                   "See the expected layout: ",
-                  downloadLink(ns("dl_sample"), "sample data"), " · ",
+                  downloadLink(ns("dl_sample"), "sample data"), " \u00b7 ",
                   downloadLink(ns("dl_sample_map"), "sample column mapping")))
         ),
         uiOutput(ns("sheet_ui")),
@@ -48,9 +56,9 @@ mod_import_ui <- function(id) {
       )
     ),
     card(class = "mb-4", step_header(2, "Tell Triangulator which column is which"),
-         card_body(uiOutput(ns("mapping_ui")))),
+         card_body(fillable = FALSE, uiOutput(ns("mapping_ui")))),
     card(class = "mb-4", step_header(3, "Check your data"),
-         card_body(uiOutput(ns("checks_ui"))))
+         card_body(fillable = FALSE, uiOutput(ns("checks_ui"))))
   )
 }
 
@@ -80,6 +88,7 @@ mod_import_server <- function(id) {
     observeEvent(input$file, load_file(input$file$datapath, input$file$name))
     observeEvent(input$use_sample, {
       load_file(app_path("www", SAMPLE_DATA_FILE), SAMPLE_DATA_FILE, is_sample = TRUE)
+      if (!is.null(upload())) session$sendCustomMessage("triangulator-scroll", list(id = ns("run_checks")))
     })
     observeEvent(input$sheet, {
       u <- upload()
@@ -135,11 +144,7 @@ mod_import_server <- function(id) {
             div(class = "field-help", FIELDS[[field]]$help))
       }
       two_cols <- function(...) layout_columns(col_widths = breakpoints(sm = 12, md = c(6, 6)), ...)
-      tagList(
-        div(class = "alert alert-info d-flex gap-2",
-            icon("lightbulb"),
-            tags$span(if (u$is_sample) "The sample data's columns have been filled in for you."
-                      else "We've made a best guess from your column names. Please check each one.")),
+      fields <- tagList(
         tags$h6(class = "mapping-group", "Identifiers"),
         two_cols(field_input("claim_id"), field_input("policy_id")),
         tags$h6(class = "mapping-group", "Dates"),
@@ -160,6 +165,25 @@ mod_import_server <- function(id) {
             div(class = "mb-3",
                 downloadButton(ns("save_mapping"), "Save this mapping", class = "btn-outline-secondary")))
       )
+      if (u$is_sample) {
+        # The sample's columns are already right, so keep this step tidied away.
+        tagList(
+          div(class = "alert alert-success d-flex gap-2",
+              icon("circle-check"),
+              tags$span("The sample data's columns have been filled in for you, so you can go straight to ",
+                        tags$strong("step 3", .noWS = "after"), ".")),
+          accordion(open = FALSE,
+                    accordion_panel("See how the columns were matched", icon = icon("table-columns"), fields))
+        )
+      } else {
+        tagList(
+          div(class = "alert alert-info d-flex gap-2",
+              icon("lightbulb"),
+              tags$span("We've made a best guess from your column names. Please check each one, then go to step 3. ",
+                        "Items marked optional can be left blank.")),
+          fields
+        )
+      }
     })
 
     current_mapping <- reactive({
@@ -224,6 +248,7 @@ mod_import_server <- function(id) {
         run_safely(check_upload(u$df, mapping), doing = "checking your data")
       })
       if (!is.null(result)) result$mapping_used <- mapping
+      session$sendCustomMessage("triangulator-scroll", list(id = ns("results_top"), block = "start"))
       if (!is.null(result) && result$status == "checked") {
         log_info("Data checks done: score ", round(100 * result$checks$score, 2), "%, ",
                  result$checks$n_errors, " problem(s), ", result$checks$n_warnings, " warning(s)")
@@ -246,6 +271,7 @@ mod_import_server <- function(id) {
       ch <- st$checks
       score_theme <- if (ch$n_errors > 0) "danger" else if (ch$score >= 0.99) "success" else "warning"
       tagList(
+        div(id = ns("results_top")),
         layout_column_wrap(
           width = "220px", fill = FALSE, class = "mt-3",
           value_box("Data score", scales::percent(ch$score, accuracy = 0.1), theme = score_theme,
@@ -255,11 +281,11 @@ mod_import_server <- function(id) {
           value_box("Warnings", ch$n_warnings, theme = if (ch$n_warnings) "warning" else "light",
                     showcase = icon("triangle-exclamation"))
         ),
-        tags$p(class = "small text-muted mt-2",
-               "The data score is the share of all row-by-row checks that passed. ",
-               "Click a check in the table to see the rows involved."),
-        DT::DTOutput(ns("checks_table")),
-        uiOutput(ns("failing_rows")),
+        if (isTRUE(st$valuation_dates == 1)) {
+          div(class = "alert alert-info mt-3 d-flex gap-2", icon("circle-info"),
+              tags$span(tags$strong("One valuation date. "), SINGLE_SNAPSHOT_MESSAGE,
+                        " The summary, claim sizes, groups at a glance and trends will still work."))
+        },
         if (st$combinations > 50) {
           div(class = "alert alert-warning mt-3",
               "Your grouping columns make ", st$combinations, " combinations. ",
@@ -274,7 +300,13 @@ mod_import_server <- function(id) {
             actionButton(ns("build"), "Build my dashboard", icon = icon("play"), class = "btn-success btn-lg"),
             tags$span(class = "text-muted",
                       if (ch$n_errors + ch$n_warnings > 0) "Warnings don't stop the app from working."
-                      else "Everything looks good."))
+                      else "Everything looks good.")),
+        tags$h6(class = "mt-4", "Check details"),
+        tags$p(class = "small text-muted",
+               "The data score is the share of all row-by-row checks that passed. ",
+               "Click a check in the table to see the rows involved."),
+        DT::DTOutput(ns("checks_table")),
+        uiOutput(ns("failing_rows"))
       )
     })
 

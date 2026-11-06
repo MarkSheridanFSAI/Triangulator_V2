@@ -1,16 +1,11 @@
-# Runs before the tests: load the app's functions from the R/ folder.
-project_root <- normalizePath(file.path(testthat::test_path(), "..", ".."))
-options(triangulator.app_dir = project_root)
-for (f in list.files(file.path(project_root, "R"), pattern = "\\.R$", full.names = TRUE)) {
-  source(f, local = FALSE)
-}
+# Runs before the tests. The package itself is loaded by run_tests.R (or by R CMD check).
 
 # The sample data, prepared exactly as the app does it.
 sample_prepared <- local({
   cache <- NULL
   function() {
     if (is.null(cache)) {
-      raw <- read_claims_file(file.path(project_root, "www", "sample_database.xlsx"), "sample_database.xlsx")
+      raw <- read_claims_file(app_path("www", "sample_database.xlsx"), "sample_database.xlsx")
       mapping <- guess_mapping(raw)
       std <- standardise_claims(raw, mapping)
       fin <- finalise_claims(std$data, mapping$groupings)

@@ -4,3 +4,8 @@
 .Ruserdata
 .DS_Store
 **/.DS_Store
+Rplots.pdf
+tests/testthat/Rplots.pdf
+LINKEDIN_POST.md
+*.tar.gz
+Triangulator.Rcheck/

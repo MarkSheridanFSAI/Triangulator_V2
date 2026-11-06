@@ -20,7 +20,7 @@ mod_triangle_ui <- function(id) {
     fillable = FALSE,
     sidebar = sidebar(
       width = 300, title = "Choose a triangle",
-      selectInput(ns("basis"), "Origin basis", BASIS_CHOICES, selected = "incident"),
+      selectInput(ns("basis"), "Group claims by", BASIS_CHOICES, selected = "incident"),
       selectInput(ns("time"), "Period length", PERIOD_CHOICES, selected = "quarterly"),
       selectInput(ns("measure"), "Measure", measure_choices(), selected = "ITOT"),
       uiOutput(ns("group_controls")),
@@ -28,6 +28,9 @@ mod_triangle_ui <- function(id) {
       checkboxInput(ns("exclude_large"), "Leave out large claims", value = FALSE),
       conditionalPanel("input.exclude_large", ns = ns, uiOutput(ns("threshold_ui")))
     ),
+    tab_intro("A triangle shows how claims developed over time. Each row is a group of claims (for example, ",
+              "all incidents in one quarter); read along a row to follow those claims as they mature, or down a ",
+              "column to compare groups at the same age. Pick any cell below to see which claims moved."),
     tags$h5(class = "mb-0", textOutput(ns("title"), inline = TRUE)),
     navset_card_tab(
       full_screen = TRUE,
@@ -114,6 +117,7 @@ mod_triangle_server <- function(id, data, display = reactive(DEFAULT_DISPLAY)) {
     full_triangles <- reactive({
       d <- data()
       req(d, input$basis, input$time)
+      validate(need(!isTRUE(d$single_snapshot), SINGLE_SNAPSHOT_MESSAGE))
       key <- paste(input$basis, input$time, sep = "_")
       t <- threshold()
       tri <- if (is.infinite(t)) {
@@ -127,7 +131,7 @@ mod_triangle_server <- function(id, data, display = reactive(DEFAULT_DISPLAY)) {
         }
         cache[[cache_key]]
       }
-      validate(need(!is.null(tri), "None of your rows have the date needed for this origin basis."))
+      validate(need(!is.null(tri), basis_missing_message(input$basis)))
       tri
     })
 

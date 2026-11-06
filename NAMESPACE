@@ -1,0 +1,8 @@
+# Written by hand (the app has a single exported function, run_app()).
+export(run_app)
+import(bslib)
+import(dplyr)
+import(shiny)
+importFrom(data.table, data.table)
+importFrom(plotly, plotlyOutput, renderPlotly)
+importFrom(rlang, .data)

@@ -12,8 +12,8 @@ display_groups <- function(df, d) {
 mod_summary_ui <- function(id) {
   ns <- NS(id)
   tagList(
-    tags$p(class = "section-note",
-           "Each claim's latest position. A claim counts as settled when its outstanding case estimate is zero."),
+    tab_intro("The big picture, using each claim's latest position. A claim counts as settled when its ",
+              "outstanding case estimate is zero. 'Groups at a glance' compares your groups side by side."),
     navset_card_tab(
       full_screen = TRUE,
       nav_panel("Charts",
@@ -28,7 +28,7 @@ mod_summary_ui <- function(id) {
                 tags$p(class = "small text-muted",
                        "Key diagnostics for each group, side by side. In each column the highest group is shaded ",
                        tags$span(class = "glance-high", "orange"), " and the lowest ",
-                       tags$span(class = "glance-low", "blue"), ". ",
+                       tags$span(class = "glance-low", "blue", .noWS = "after"), ". ",
                        textOutput(ns("glance_notes"), inline = TRUE)),
                 DT::DTOutput(ns("glance"))),
       nav_panel("Table", DT::DTOutput(ns("table")))
@@ -118,6 +118,8 @@ mod_sizes_ui <- function(id) {
              "Claims are placed by their latest incurred amount. Each band includes its upper limit, ",
              "so a claim of exactly 5,000 is in 0 - 5,000.")
     ),
+    tab_intro("How many claims fall into each size band, using each claim's latest incurred amount. ",
+              "Useful for spotting large losses and seeing what a typical claim looks like."),
     navset_card_tab(
       full_screen = TRUE,
       title = tags$span(class = "tri-heading", "Number of claims by size"),
@@ -161,7 +163,7 @@ mod_origin_ui <- function(id) {
     fillable = FALSE,
     sidebar = sidebar(
       width = 270, title = "Options",
-      selectInput(ns("basis"), "Origin basis", BASIS_CHOICES, selected = "incident"),
+      selectInput(ns("basis"), "Group claims by", BASIS_CHOICES, selected = "incident"),
       selectInput(ns("time"), "Period length", PERIOD_CHOICES, selected = "quarterly"),
       selectInput(ns("measure"), "Measure", measure_choices(include_factors = FALSE),
                   selected = "ITOT_minus_PTOT"),
@@ -171,6 +173,8 @@ mod_origin_ui <- function(id) {
              "When comparing, amounts and counts show each group's share of the total, and ratios show ",
              "how far each group is above or below the figure for all groups.")
     ),
+    tab_intro("Compare periods side by side: where each period's claims stand today. ",
+              "For example, choose 'Average incurred per claim' to see whether claims are getting more expensive."),
     tags$h5(class = "mb-0", textOutput(ns("title"), inline = TRUE)),
     navset_card_tab(
       full_screen = TRUE,
@@ -186,7 +190,7 @@ mod_origin_server <- function(id, data, display = reactive(DEFAULT_DISPLAY)) {
       d <- data()
       req(d, input$basis, input$time, input$measure)
       tri <- d$triangles[[paste(input$basis, input$time, sep = "_")]]
-      validate(need(!is.null(tri), "None of your rows have the date needed for this origin basis."))
+      validate(need(!is.null(tri), basis_missing_message(input$basis)))
       out <- origin_analysis(tri, d$groupings, input$measure, input$time)
       if (comparing()) {
         validate(need(ncol(out) > 2, "There's only one group, so there's nothing to compare."))

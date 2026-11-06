@@ -21,11 +21,14 @@ mod_reserves_ui <- function(id) {
       tags$p(class = "small text-muted",
              "Development factors are volume-weighted averages over all origin periods, based on incurred amounts.")
     ),
+    tab_intro("An estimate of what your claims will cost in the end, split into what's already paid, what's ",
+              "already reserved on known claims, and what's still to come. See 'What do these mean?' below."),
     div(class = "alert alert-warning d-flex gap-2",
         icon("triangle-exclamation"),
         tags$span(tags$strong("A first look only. "),
                   "These estimates come from a basic chain-ladder applied automatically, so they can be volatile. ",
                   "Don't rely on them for booking reserves.")),
+    uiOutput(ns("urr_note")),
     navset_card_tab(
       full_screen = TRUE,
       title = tags$span(class = "tri-heading", "Initial reserve estimates"),
@@ -46,6 +49,7 @@ mod_reserves_server <- function(id, data, display = reactive(DEFAULT_DISPLAY)) {
     components <- reactive({
       d <- data()
       req(d, input$time)
+      validate(need(!isTRUE(d$single_snapshot), SINGLE_SNAPSHOT_MESSAGE))
       res <- tryCatch(reserve_components(d$triangles, d$groupings, input$time),
                       friendly_error = function(e) e)
       if (inherits(res, "friendly_error")) validate(need(FALSE, conditionMessage(res)))
@@ -64,6 +68,15 @@ mod_reserves_server <- function(id, data, display = reactive(DEFAULT_DISPLAY)) {
 
     outputOptions(output, "group_ui", suspendWhenHidden = FALSE)  # sidebar may be collapsed
 
+    output$urr_note <- renderUI({
+      comp <- components()
+      urr <- comp$value[comp$metric == "URR"]
+      if (length(urr) && all(is.na(urr))) {
+        div(class = "alert alert-light border",
+            "Your data has no policy start dates, so unexpired risk (URR) can't be estimated and is left out.")
+      }
+    })
+
     output$waterfall <- renderPlot({
       comp <- components()
       d <- data()
@@ -71,7 +84,7 @@ mod_reserves_server <- function(id, data, display = reactive(DEFAULT_DISPLAY)) {
       req(chosen)
       if (!identical(chosen, ALL_GROUPS)) comp <- comp[comp$group == chosen, ]
       validate(need(nrow(comp) > 0, "No reserve figures for this group."))
-      totals <- tapply(comp$value, comp$metric, sum, na.rm = TRUE)
+      totals <- tapply(comp$value, comp$metric, function(v) if (all(is.na(v))) NA_real_ else sum(v, na.rm = TRUE))
       values <- stats::setNames(as.numeric(totals[RESERVE_METRICS]), RESERVE_METRICS)
       title <- if (identical(chosen, ALL_GROUPS)) "All groups" else chosen
       reserve_waterfall(values, title, display())

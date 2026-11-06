@@ -32,7 +32,8 @@ build_report_workbook <- function(d) {
              "Grouping columns"),
     Value = c(format(Sys.time(), "%Y-%m-%d %H:%M"), d$file_name, scales::comma(nrow(d$claims)),
               scales::comma(nrow(d$current)), format(d$valuation),
-              vapply(SINGLE_FIELDS, function(f) m[[f]], character(1)),
+              vapply(SINGLE_FIELDS, function(f) if ((m[[f]] %||% "") == "") "(not provided)" else m[[f]],
+                     character(1)),
               if (length(m$groupings)) paste(m$groupings, collapse = ", ") else "(none)"),
     stringsAsFactors = FALSE
   )

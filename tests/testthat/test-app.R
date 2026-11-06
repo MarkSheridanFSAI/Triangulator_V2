@@ -88,3 +88,21 @@ test_that("the Excel report can be built, including with no grouping columns", {
   d0$current <- current_positions(fin$data)
   expect_no_error(openxlsx::saveWorkbook(build_report_workbook(d0), tempfile(fileext = ".xlsx")))
 })
+
+test_that("triangles, reserves and ranges explain single-bordereau data instead of showing nonsense", {
+  d <- sample_app_data()
+  d$single_snapshot <- TRUE
+  testServer(mod_triangle_server, args = list(data = reactive(d)), {
+    session$setInputs(basis = "incident", time = "quarterly", measure = "ITOT",
+                      group_1 = ALL_GROUPS, group_2 = ALL_GROUPS, exclude_large = FALSE)
+    expect_error(full_triangles(), "only one valuation date")
+  })
+  testServer(mod_reserves_server, args = list(data = reactive(d)), {
+    session$setInputs(time = "quarterly", group = ALL_GROUPS)
+    expect_error(components(), "only one valuation date")
+  })
+  testServer(mod_ranges_server, args = list(data = reactive(d)), {
+    session$setInputs(basis = "incident", time = "quarterly", measure = "PTOT", group = ALL_GROUPS)
+    expect_error(ranges(), "only one valuation date")
+  })
+})

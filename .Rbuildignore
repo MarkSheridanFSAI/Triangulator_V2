@@ -1,0 +1,10 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.github$
+^launch_app\.R$
+^run_tests\.R$
+^GETTING_STARTED\.md$
+^NEWS\.md$
+^docs$
+^LINKEDIN_POST\.md$
+^\.DS_Store$

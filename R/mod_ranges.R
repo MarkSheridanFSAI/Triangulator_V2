@@ -20,13 +20,15 @@ mod_ranges_ui <- function(id) {
     fillable = FALSE,
     sidebar = sidebar(
       width = 280, title = "Options",
-      selectInput(ns("basis"), "Origin basis", BASIS_CHOICES, selected = "incident"),
+      selectInput(ns("basis"), "Group claims by", BASIS_CHOICES, selected = "incident"),
       selectInput(ns("time"), "Period length", PERIOD_CHOICES, selected = "quarterly"),
       selectInput(ns("measure"), "Project", c("Paid amounts" = "PTOT", "Incurred amounts" = "ITOT"),
                   selected = "PTOT"),
       uiOutput(ns("group_ui")),
       tags$p(class = "small text-muted", textOutput(ns("covers"), inline = TRUE))
     ),
+    tab_intro("How far the final cost could reasonably be from the best estimate. The wider the range, the less ",
+              "certain the estimate."),
     div(class = "alert alert-warning d-flex gap-2",
         icon("triangle-exclamation"),
         tags$span(tags$strong("A guide to uncertainty, not a precise answer. "),
@@ -104,8 +106,9 @@ mod_ranges_server <- function(id, data, display = reactive(DEFAULT_DISPLAY)) {
     ranges <- reactive({
       d <- data()
       req(d, input$basis, input$time, input$measure)
+      validate(need(!isTRUE(d$single_snapshot), SINGLE_SNAPSHOT_MESSAGE))
       tri <- d$triangles[[paste(input$basis, input$time, sep = "_")]]
-      validate(need(!is.null(tri), "None of your rows have the date needed for this origin basis."))
+      validate(need(!is.null(tri), basis_missing_message(input$basis)))
       chosen <- if (isTRUE(d$synthetic_grouping)) ALL_GROUPS else input$group
       req(chosen)
       if (!identical(chosen, ALL_GROUPS)) tri <- tri[group_label(tri, d$groupings) == chosen, ]

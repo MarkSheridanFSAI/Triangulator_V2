@@ -19,9 +19,20 @@ test_that("reserve components add up to the underwriting ultimate", {
   expect_equal(table$`All groups`[6], sum(comp$value))
 })
 
-test_that("reserves explain clearly when a basis has no dates", {
+test_that("without policy start dates, URR is left blank and the rest still works", {
   tiny <- prepare_tiny()
+  full <- reserve_components(build_all_triangles(tiny$data, tiny$groupings), tiny$groupings, "yearly")
   tiny$data$date_issue <- as.Date(NA)
+  comp <- reserve_components(build_all_triangles(tiny$data, tiny$groupings), tiny$groupings, "yearly")
+  expect_true(is.na(comp$value[comp$metric == "URR"]))
+  expect_equal(comp$value[comp$metric != "URR"], full$value[full$metric != "URR"])
+  table <- reserve_table(comp, tiny$groupings)
+  expect_equal(table$`All groups`[6], sum(comp$value, na.rm = TRUE))
+})
+
+test_that("reserves explain clearly when incident dates are missing", {
+  tiny <- prepare_tiny()
+  tiny$data$date_incident <- as.Date(NA)
   triangles <- build_all_triangles(tiny$data, tiny$groupings)
-  expect_error(reserve_components(triangles, tiny$groupings, "yearly"), class = "friendly_error")
+  expect_error(reserve_components(triangles, tiny$groupings, "yearly"), "incident", class = "friendly_error")
 })

@@ -6,12 +6,12 @@ MAX_ROWS <- 2e6
 FIELDS <- list(
   claim_id      = list(label = "Claim ID",
                        help  = "Identifies each claim. The same claim appears on several rows, one for each valuation date."),
-  policy_id     = list(label = "Policy ID",
-                       help  = "The policy the claim belongs to."),
+  policy_id     = list(label = "Policy ID (optional)", optional = TRUE,
+                       help  = "The policy the claim belongs to. Shown in the claim tables."),
   date_stamp    = list(label = "Valuation date",
                        help  = "The date the figures on that row were recorded (also called the observation or snapshot date)."),
-  date_issue    = list(label = "Policy start date",
-                       help  = "When the policy was issued or started. Used for underwriting triangles."),
+  date_issue    = list(label = "Policy start date (optional)", optional = TRUE,
+                       help  = "When the policy started (inception). Needed for underwriting triangles and the unexpired risk (URR) estimate."),
   date_incident = list(label = "Incident date",
                        help  = "When the loss happened. Used for accident triangles."),
   date_reported = list(label = "Report date",
@@ -22,6 +22,7 @@ FIELDS <- list(
                        help  = "The case reserve still held on the claim at that date. Zero means the claim is settled.")
 )
 SINGLE_FIELDS <- names(FIELDS)
+OPTIONAL_FIELDS <- names(FIELDS)[vapply(FIELDS, function(f) isTRUE(f$optional), logical(1))]
 DATE_FIELDS   <- c("date_stamp", "date_issue", "date_incident", "date_reported")
 AMOUNT_FIELDS <- c("paid", "case")
 
@@ -94,12 +95,12 @@ guess_mapping <- function(df) {
   patterns <- c(
     claim_id      = "claim.*(id|no|num|ref|key|code)|^claims?$",
     policy_id     = "polic.*(id|no|num|ref|key|code)|^polic(y|ies)$",
-    date_stamp    = "stamp|valuation|observ|snapshot|as_?at|extract|val_?date|period_?end",
+    date_stamp    = "stamp|valuation|observ|snapshot|as_?at|as_?of|extract|val_?date|period_?end|bordereau|bdx|run_?date",
     date_issue    = "issue|incept|start|underwr|written|commenc",
     date_incident = "incident|accident|loss_?date|date_?of_?loss|occur|event",
     date_reported = "report|notif",
     paid          = "paid|payment",
-    case          = "case|outstanding|reserve|estimate|^os_|_os$"
+    case          = "case|outstanding|reserve|estimate|(^|_)o_?s($|_)"
   )
   m <- empty_mapping()
   used <- character(0)
@@ -179,7 +180,9 @@ validate_mapping <- function(df, mapping) {
   cols <- names(df)
   for (field in SINGLE_FIELDS) {
     value <- mapping[[field]] %||% ""
-    if (value == "") {
+    if (value == "" && field %in% OPTIONAL_FIELDS) {
+      next
+    } else if (value == "") {
       problems <- c(problems, paste0("Choose a column for ", field_label(field), "."))
     } else if (!value %in% cols) {
       problems <- c(problems, paste0("The column '", value, "' (for ", field_label(field), ") isn't in your data."))
@@ -275,7 +278,7 @@ as_claim_amount <- function(x) {
   cleaned <- trimws(x)
   cleaned[cleaned == ""] <- NA
   negative <- grepl("^\\(.*\\)$", cleaned)              # (123) means -123 in accounting
-  cleaned <- gsub("[(),£$€[:space:]]", "", cleaned)
+  cleaned <- gsub("[(),\u00a3$\u20ac[:space:]]", "", cleaned)
   value <- suppressWarnings(as.numeric(cleaned))
   value[negative & !is.na(value)] <- -value[negative & !is.na(value)]
   failed <- !is.na(cleaned) & is.na(value)
@@ -299,13 +302,18 @@ as_id <- function(x) {
 # Returns list(data, problems). Missing values are kept so the data checks can see them.
 standardise_claims <- function(df, mapping) {
   out <- data.frame(row_in_file = seq_len(nrow(df)))
+  provided <- function(field) !is.null(mapping[[field]]) && mapping[[field]] != ""
   out$claim_id  <- as_id(df[[mapping$claim_id]])
-  out$policy_id <- as_id(df[[mapping$policy_id]])
+  out$policy_id <- if (provided("policy_id")) as_id(df[[mapping$policy_id]]) else NA_character_
   for (g in mapping$groupings) {
     out[[g]] <- trimws(as.character(df[[g]]))
   }
   problems <- character(0)
   for (field in DATE_FIELDS) {
+    if (!provided(field)) {
+      out[[field]] <- as.Date(rep(NA_real_, nrow(df)))
+      next
+    }
     res <- as_claim_date(df[[mapping[[field]]]])
     if (is.null(res$problem)) out[[field]] <- res$value
     else problems <- c(problems, paste0(field_label(field), " ('", mapping[[field]], "'): ", res$problem))

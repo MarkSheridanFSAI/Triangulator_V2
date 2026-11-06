@@ -3,7 +3,8 @@
 #   "error"   - must be fixed before triangles can be built
 #   "warning" - worth looking at, but the app can carry on
 
-run_data_checks <- function(std) {
+# `provided` lists the fields the user mapped; checks on other fields are skipped.
+run_data_checks <- function(std, provided = SINGLE_FIELDS) {
   d <- std
   # Treat "can't tell" (a missing value) as a pass for comparison checks; the
   # missing values have their own checks.
@@ -30,10 +31,10 @@ run_data_checks <- function(std) {
          is.na(d$date_stamp)),
     list("warning", "Policy ID is filled in",
          "Shown as blank in the claim tables. Doesn't affect the triangles.",
-         is.na(d$policy_id)),
+         is.na(d$policy_id), "policy_id"),
     list("warning", "Policy start date is filled in",
-         "Rows without one are left out of underwriting triangles and the reserves.",
-         is.na(d$date_issue)),
+         "Rows without one are left out of underwriting triangles and the URR estimate.",
+         is.na(d$date_issue), "date_issue"),
     list("warning", "Incident date is filled in",
          "Rows without one are left out of accident triangles and the reserves.",
          is.na(d$date_incident)),
@@ -57,10 +58,10 @@ run_data_checks <- function(std) {
          paid_drops),
     list("warning", "Policy started on or before the valuation date",
          "A row can't normally be recorded before the policy started.",
-         flag(d$date_issue > d$date_stamp)),
+         flag(d$date_issue > d$date_stamp), "date_issue"),
     list("warning", "Incident happened on or after the policy start date",
          "Claims normally happen while the policy is in force.",
-         flag(d$date_incident < d$date_issue)),
+         flag(d$date_incident < d$date_issue), "date_issue"),
     list("warning", "Claim reported on or after the incident date",
          "A claim can't normally be reported before it happened.",
          flag(d$date_reported < d$date_incident)),
@@ -71,6 +72,9 @@ run_data_checks <- function(std) {
          "Where a claim has several rows on the same valuation date, only the last one in the file is used.",
          dup)
   )
+
+  # Leave out checks on columns the user didn't provide.
+  checks <- Filter(function(ch) length(ch) < 5 || ch[[5]] %in% provided, checks)
 
   summary <- dplyr::tibble(
     severity      = vapply(checks, `[[`, character(1), 1),

@@ -42,9 +42,16 @@ app_css <- function() {
   .placeholder-box { text-align: center; color: var(--bs-secondary-color); padding: 1.5rem; }
   .placeholder-box .fa { font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.6; }
   .tri-page h6 { font-weight: 600; }
+  .import-lead { margin-bottom: 1rem; }
+  .import-lead p { color: var(--bs-secondary-color); max-width: 60rem; margin-bottom: 0; }
   .display-controls .form-group { margin-bottom: 0; }
   .glance-high { background: #fde2c4; padding: 0 0.3rem; border-radius: 0.2rem; }
   .glance-low { background: #d6e4f5; padding: 0 0.3rem; border-radius: 0.2rem; }
+  .tab-intro { background: var(--bs-light); border-left: 4px solid var(--bs-primary);
+               border-radius: 0.35rem; padding: 0.6rem 0.9rem; margin-bottom: 1rem; }
+  .tab-intro .fa { color: var(--bs-primary); margin-top: 0.2rem; }
+  .tri-footer { text-align: center; color: var(--bs-secondary-color); font-size: 0.8rem;
+                padding: 1.5rem 1rem 2rem; }
   .section-note { color: var(--bs-secondary-color); margin-bottom: 0.75rem; }
   .bslib-value-box .value-box-value { font-size: 1.6rem; }
   .headline-boxes { display: grid; gap: 0.75rem;
@@ -65,6 +72,11 @@ step_badge <- function(n) tags$span(class = "step-badge", n)
 
 step_header <- function(n, title) {
   card_header(class = "d-flex align-items-center gap-2", step_badge(n), tags$span(class = "tri-heading", title))
+}
+
+# A short plain-English explanation at the top of each dashboard tab.
+tab_intro <- function(...) {
+  div(class = "tab-intro d-flex gap-2", icon("circle-info"), tags$span(...))
 }
 
 placeholder <- function(text, icon_name = "circle-info") {
@@ -161,7 +173,7 @@ dashboard_ui <- function(units = NULL, currency = NULL) {
         id = "dashboard_tabs",
         nav_panel("Summary", icon = icon("gauge"), div(class = "pt-3", mod_summary_ui("summary"))),
         nav_panel("Claim sizes", icon = icon("chart-simple"), div(class = "pt-3", mod_sizes_ui("sizes"))),
-        nav_panel("Origin analysis", icon = icon("chart-area"), div(class = "pt-3", mod_origin_ui("origin"))),
+        nav_panel("Trends by period", icon = icon("chart-area"), div(class = "pt-3", mod_origin_ui("origin"))),
         nav_panel("Triangles", icon = icon("table-cells"), div(class = "pt-3", mod_triangle_ui("triangle"))),
         nav_panel("Reserves", icon = icon("scale-balanced"), div(class = "pt-3", mod_reserves_ui("reserves"))),
         nav_panel("Reserve ranges", icon = icon("chart-line"), div(class = "pt-3", mod_ranges_ui("ranges")))
@@ -203,11 +215,20 @@ help_page_ui <- function() {
                tags$h6(class = "mt-4", "What your file needs"),
                tags$ul(
                  tags$li("One row per claim per valuation date."),
-                 tags$li("Columns for: claim ID, policy ID, valuation date, policy start date, incident date, report date, paid to date and outstanding case estimate."),
+                 tags$li("Columns for: claim ID, valuation date, incident date, report date, paid to date and outstanding case estimate."),
+                 tags$li("Optionally: policy ID and policy start date (needed for underwriting views and the unexpired risk estimate)."),
                  tags$li("Optionally, one or more grouping columns such as line of business."),
                  tags$li("Dates can be real Excel dates or text like 2023-01-31 or 31/01/2023 (text dates are read as day/month/year)."),
                  tags$li("Excel (.xlsx, .xls) or CSV, up to 100 MB and 2 million rows.")
                ),
+               tags$h6(class = "mt-4", "Using bordereaux"),
+               tags$p("A single bordereau shows each claim at one point in time. That's enough for the summary, ",
+                      "claim sizes, groups at a glance and trends. For triangles and reserve estimates, combine ",
+                      "several bordereaux (for example, the last 12 or more months) into one file: put them one under ",
+                      "another, add a column holding each bordereau's date, and choose that column as the ",
+                      tags$strong("valuation date"), "."),
+               tags$p("Typical bordereau headings work automatically: for example 'Claim Ref', 'Date of Loss', ",
+                      "'Date Notified', 'Paid to Date' and 'Outstanding Reserve'."),
                tags$h6(class = "mt-4", "Your data stays private"),
                tags$p("When you run Triangulator on your own computer, your file never leaves it. Nothing is saved after you close the app."),
                tags$h6(class = "mt-4", "Please note"),

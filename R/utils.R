@@ -3,8 +3,8 @@
 # "a %||% b" means "a, unless a is missing (NULL), in which case b".
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
-# Where the app's files live (www/ etc). Tests point this at the project folder.
-app_path <- function(...) file.path(getOption("triangulator.app_dir", "."), ...)
+# Files that ship with the app (sample data etc.), in the package's inst/app folder.
+app_path <- function(...) system.file("app", ..., package = "Triangulator", mustWork = TRUE)
 
 # Write a time-stamped line to the R console so you can follow what the app is
 # doing (and see where it stopped if something goes wrong).
@@ -48,10 +48,25 @@ run_safely <- function(expr, doing = "doing that", session = shiny::getDefaultRe
 # ---- Choices shown in the app ------------------------------------------------
 
 BASIS_CHOICES <- c(
-  "Accident (incident date)"         = "incident",
-  "Reported (report date)"           = "reporting",
-  "Underwriting (policy start date)" = "underwriting"
+  "Incident date (accident)"         = "incident",
+  "Report date (reported)"           = "reporting",
+  "Policy start date (underwriting)" = "underwriting"
 )
+
+# Shown when a view needs a date column the data doesn't have.
+basis_missing_message <- function(basis) {
+  date <- c(incident = "an incident date", reporting = "a report date",
+            underwriting = "a policy start date")[[basis]]
+  paste0("This view needs ", date, " for each claim, which your data doesn't have. ",
+         "Choose a different 'Group claims by' option.")
+}
+
+# Shown when the data holds only one valuation date (a single bordereau or listing).
+SINGLE_SNAPSHOT_MESSAGE <- paste(
+  "Your data has only one valuation date, so it shows each claim at a single point in time.",
+  "Triangles, development patterns and reserve estimates need the same claims at several dates.",
+  "If you have monthly or quarterly bordereaux, combine them into one file with a column for the",
+  "bordereau date, and use that as the valuation date.")
 
 PERIOD_CHOICES <- c("Monthly" = "monthly", "Quarterly" = "quarterly", "Yearly" = "yearly")
 
@@ -104,7 +119,7 @@ fmt_amount <- function(x) scales::comma(x, accuracy = 1)
 # ---- How amounts are shown (chosen at the top of the dashboard) -----------------
 
 UNIT_CHOICES <- c("Full amounts" = "1", "Thousands (k)" = "1000", "Millions (m)" = "1000000")
-CURRENCY_CHOICES <- c("No symbol" = "", "£" = "£", "€" = "€", "$" = "$")
+CURRENCY_CHOICES <- c("No symbol" = "", "\u00a3" = "\u00a3", "\u20ac" = "\u20ac", "$" = "$")
 
 display_settings <- function(divisor = 1, symbol = "") {
   divisor <- suppressWarnings(as.numeric(divisor))

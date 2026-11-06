@@ -1,0 +1,40 @@
+Package: Triangulator
+Type: Package
+Title: A Reserving Companion App for Quick Claims Analysis
+Version: 2.0.0
+Authors@R: person("Mark", "Sheridan", email = "176624331+MarkSheridanFSAI@users.noreply.github.com",
+                  role = c("aut", "cre"))
+Description: A point-and-click 'shiny' app for exploring insurance claims data.
+    Upload a claims listing or bordereaux and get data checks, summaries by
+    group, claim size bands, claims development triangles with drill-down to
+    individual claims, development patterns, first-look chain-ladder reserve
+    estimates and reserve ranges using Mack's method. Designed for people who
+    are not actuaries or programmers.
+License: file LICENSE
+URL: https://github.com/MarkSheridanFSAI/Triangulator_V2
+BugReports: https://github.com/MarkSheridanFSAI/Triangulator_V2/issues
+Encoding: UTF-8
+Depends:
+    R (>= 4.1.0)
+Imports:
+    bslib (>= 0.9.0),
+    data.table,
+    dplyr (>= 1.1.0),
+    DT,
+    ggplot2,
+    htmltools,
+    openxlsx,
+    plotly,
+    readxl,
+    rlang,
+    scales,
+    shiny (>= 1.8.1),
+    stats,
+    tidyr (>= 1.3.0),
+    tools,
+    utils,
+    waterfalls
+Suggests:
+    pkgload,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

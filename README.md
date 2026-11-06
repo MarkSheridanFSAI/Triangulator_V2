@@ -1,64 +1,121 @@
 # Triangulator
 
-A reserving companion app. Give it your line-by-line claims data and it builds
-claims development triangles, summaries and first-look reserve estimates for you.
+[![R-CMD-check](https://github.com/MarkSheridanFSAI/Triangulator_V2/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/MarkSheridanFSAI/Triangulator_V2/actions/workflows/R-CMD-check.yaml)
 
-## Getting started
+**Quick claims analysis, no coding needed.** Upload a claims listing or a set of bordereaux and
+Triangulator gives you instant diagnostics: where your claims stand, how groups compare, how
+claims develop over time, and a first look at reserves. It's free, and your data stays on your computer.
 
-1. Install [R](https://cloud.r-project.org/) (version 4.3 or newer) and
-   [RStudio](https://posit.co/download/rstudio-desktop/) or [Positron](https://positron.posit.co/).
-2. Download this project from GitHub and open `Triangulator_V2.Rproj`.
-3. Run `install.packages.R` once (open it and click **Source**).
-4. Open `app.R` and click **Run App**.
-5. On the **Import** page, upload your file, or click **Try it with sample data**.
+![The Triangulator dashboard](docs/images/dashboard.jpg)
 
-## What it does
+## Get started in 3 steps
 
-- **Import:** reads Excel or CSV files, guesses which column is which, and checks your
-  data for common problems (with the exact rows to look at).
-- **Summary:** paid, outstanding and incurred amounts, open and settled claims, and average claim sizes for each group.
-  **Groups at a glance** puts each group's key diagnostics side by side (average claim, % settled,
-  paid % of incurred, share of large claims, days to report and days to settle) and shades the highest and lowest.
-- **Claim sizes:** how many claims fall into each size band.
-- **Origin analysis:** where each origin period stands at the latest valuation.
-- **Triangles:** heatmaps and tables on accident, reported or underwriting basis
-  (monthly, quarterly or yearly), for any measure, optionally without large claims.
-  Drill into any cell to see which claims moved, and into any claim's full history.
-  Compare a group with all groups, and see each group's **development pattern** on one chart.
-- **Reserves:** a basic chain-ladder estimate split into case reserves, IBNER, IBNR and unexpired risk.
-- **Reserve ranges:** how uncertain the reserve is (Mack's method): standard error, percentiles
-  and a chart of the likely range of outcomes.
-- **Excel report:** everything in one workbook.
-- Amounts can be shown in full, in thousands or in millions, with a £, € or $ symbol.
+**New to R?** Follow the step-by-step guide: **[Getting started on a new computer](GETTING_STARTED.md)**
+(about 15 minutes, no coding experience needed).
 
-The reserve figures are automatic first estimates. Don't rely on them for booking reserves.
+Already have R and RStudio (or Positron)? Copy these lines into the **Console** and press Enter after each one:
 
-## Your file
+1. Install the installer (once):
+   ```r
+   install.packages("remotes")
+   ```
+2. Install Triangulator (once, and again whenever you want the latest version):
+   ```r
+   remotes::install_github("MarkSheridanFSAI/Triangulator_V2", upgrade = "never")
+   ```
+3. Start the app (every time you want to use it):
+   ```r
+   Triangulator::run_app()
+   ```
 
-One row per claim per valuation date, with columns for: claim ID, policy ID,
-valuation date, policy start date, incident date, report date, paid to date
-(a running total) and outstanding case estimate. Grouping columns such as line of
-business are optional. See `www/sample_database.xlsx` for an example.
+The app opens in your web browser. Click **Try it with sample data** to look around straight away.
+To stop it, close the browser tab and press **Esc** in the Console.
 
-## Project layout
+## What you can do
+
+| | |
+|---|---|
+| **Import** | Upload Excel or CSV. Triangulator recognises common column names (including typical bordereau headings), checks your data and shows the exact rows that need attention. |
+| **Summary** | Paid, outstanding and incurred, open and settled claims, average claim sizes. **Groups at a glance** compares groups side by side, including days to report and days to settle. |
+| **Claim sizes** | How many claims fall into each size band, to spot large losses. |
+| **Trends by period** | Compare periods, e.g. is the average claim getting bigger? Compare any group with the whole book. |
+| **Triangles** | See how claims developed over time as a heatmap or table. Click into any cell to see which claims moved, and into any claim's full history. Compare development patterns across groups. |
+| **Reserves** | A first-look estimate of what claims will finally cost, split into paid, case reserves, IBNER, IBNR and unexpired risk. |
+| **Reserve ranges** | How uncertain that estimate is (Mack's method): standard error, percentiles and a chart of likely outcomes. |
+| **Excel report** | Everything in one workbook, with one click. |
+
+Amounts can be shown in full, in thousands or in millions, with a £, € or $ symbol. Every table has
+Copy, CSV and Excel buttons. Charts can be zoomed and downloaded.
+
+![Groups at a glance](docs/images/groups-at-a-glance.jpg)
+
+## Your data file
+
+One row per claim, with:
+
+| Needed | Optional |
+|---|---|
+| Claim ID | Policy ID |
+| Valuation date (the date of the bordereau or listing) | Policy start date (needed for underwriting views and unexpired risk) |
+| Incident (loss) date | Grouping columns, e.g. class of business or region |
+| Report (notification) date | |
+| Paid to date | |
+| Outstanding reserve | |
+
+- **One bordereau** (one valuation date) gives you the summary, claim sizes, groups at a glance and trends.
+- **Several bordereaux combined** (each claim appearing once per month or quarter, with a column for the
+  bordereau date) also gives you triangles, development patterns and reserve estimates.
+- Dates can be real Excel dates or text such as `2024-01-31` or `31/01/2024` (read as day/month/year).
+- Excel (.xlsx, .xls) or CSV, up to 100 MB.
+
+See the [sample data](inst/app/www/sample_database.xlsx) for an example layout.
+
+## Privacy
+
+When you run Triangulator on your own computer, your file never leaves it. Nothing is saved after you
+close the app, apart from files you choose to download.
+
+## Please note
+
+Triangulator is a companion for exploring claims data. The reserve figures are automatic first
+estimates and must not be relied on for booking reserves. Use at your own risk.
+
+## Questions, bugs and ideas
+
+Please use the [Issues](https://github.com/MarkSheridanFSAI/Triangulator_V2/issues) tab. If something
+goes wrong, the R Console shows a time-stamped line for each step, which helps pinpoint the problem.
+
+---
+
+## For developers
+
+<details>
+<summary>Project layout, tests and how to run from source</summary>
+
+Triangulator is an R package containing a Shiny app.
 
 | Path | What it is |
 |---|---|
-| `app.R` | Starts the app and lays out the pages |
-| `R/` | All the code; Shiny loads it automatically |
+| `R/app.R` | Page layout, server logic and `run_app()` |
 | `R/prepare.R`, `R/checks.R` | Reading files, matching columns, data checks |
-| `R/triangles.R`, `R/reserves.R` | The calculations |
+| `R/triangles.R` | Building triangles and claim movements |
+| `R/reserves.R`, `R/ranges.R` | Chain-ladder reserves and Mack reserve ranges |
+| `R/compare.R`, `R/overviews.R` | Group comparisons and summaries |
+| `R/plots.R` | Charts |
 | `R/mod_*.R` | The individual pages and tabs |
+| `R/export.R` | The Excel report |
+| `inst/app/www/` | Sample data and sample column mapping |
 | `tests/testthat/` | Automated tests |
-| `www/` | Sample data and the sample column mapping |
 
-## Testing
+- **Install what's needed for development:** `install.packages(c("remotes", "pkgload", "testthat")); remotes::install_deps()`
+- **Run the app from the source code:** open `launch_app.R` and click **Source**.
+- **Run the tests:** open `run_tests.R` and click **Source**. They check the calculations against
+  hand-worked examples, against results saved from the original V1.1 app, and against the published
+  results for the standard RAA example used in reserving textbooks.
+- Every push to GitHub runs `R CMD check` on Windows, macOS and Linux (see the badge at the top).
 
-Open `run_tests.R` and click **Source**. The tests check the calculations against
-hand-worked examples and against results saved from the original V1.1 version.
+</details>
 
-## Feedback
+## Licence
 
-Please report bugs and ideas in the GitHub Issues tab, with an example if you can.
-
-Use at your own risk.
+Free and unencumbered software released into the public domain. See [LICENSE](LICENSE).
