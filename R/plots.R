@@ -39,7 +39,7 @@ finish_plot <- function(p, axis = value_axis("count"), ...) {
 }
 
 empty_plot <- function(message) {
-  plotly::plot_ly() %>%
+  plotly::plot_ly(x = numeric(0), y = numeric(0), type = "scatter", mode = "markers") %>%
     plotly::layout(xaxis = list(visible = FALSE), yaxis = list(visible = FALSE),
                    annotations = list(text = message, showarrow = FALSE, font = list(size = 16))) %>%
     plotly::config(displayModeBar = FALSE)

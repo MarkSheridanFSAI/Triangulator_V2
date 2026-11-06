@@ -118,4 +118,5 @@ Triangulator is an R package containing a Shiny app.
 
 ## Licence
 
-Free and unencumbered software released into the public domain. See [LICENSE](LICENSE).
+MIT: free to use, change and share, including commercially, as long as the copyright notice is kept.
+See [LICENSE.md](LICENSE.md).
