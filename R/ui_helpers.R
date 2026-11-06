@@ -1,5 +1,13 @@
 # Look and feel, and pieces of page used in several places ---------------------------
 
+# The red from the original Triangulator. (The original title text used pure red,
+# #FF0000; this slightly deeper red, also from the original, keeps white text readable.)
+BRAND_RED <- "#c0392b"
+
+# The original app's heading font. It loads from Google Fonts, as before; if
+# there's no internet connection a similar built-in font is used instead.
+HEADING_FONT_LINK <- "https://fonts.googleapis.com/css2?family=Lobster&display=swap"
+
 triangulator_theme <- function() {
   system_fonts <- bslib::font_collection("system-ui", "-apple-system", "Segoe UI", "Roboto",
                                          "Helvetica Neue", "Arial", "sans-serif")
@@ -15,6 +23,13 @@ triangulator_theme <- function() {
 
 app_css <- function() {
   "
+  .navbar-brand, .tri-heading, .tri-page h4, .tri-page h5, .sidebar-title {
+    font-family: 'Lobster', 'Brush Script MT', 'Segoe Script', cursive; font-weight: 400;
+    letter-spacing: 0.01em; }
+  .navbar-brand { font-size: 1.75rem; }
+  .tri-heading { font-size: 1.2rem; }
+  .sidebar-title { font-size: 1.4rem; }
+  .tri-page h5 { font-size: 1.45rem; }
   .tri-page { max-width: 1200px; margin: 0 auto; padding: 1rem 0.25rem 3rem; }
   .step-badge { display: inline-flex; align-items: center; justify-content: center;
                 width: 1.8rem; height: 1.8rem; border-radius: 50%; flex-shrink: 0;
@@ -46,7 +61,7 @@ app_css <- function() {
 step_badge <- function(n) tags$span(class = "step-badge", n)
 
 step_header <- function(n, title) {
-  card_header(class = "d-flex align-items-center gap-2", step_badge(n), tags$span(class = "fw-semibold", title))
+  card_header(class = "d-flex align-items-center gap-2", step_badge(n), tags$span(class = "tri-heading", title))
 }
 
 placeholder <- function(text, icon_name = "circle-info") {
@@ -128,7 +143,8 @@ dashboard_ui <- function() {
         nav_panel("Claim sizes", icon = icon("chart-simple"), div(class = "pt-3", mod_sizes_ui("sizes"))),
         nav_panel("Origin analysis", icon = icon("chart-area"), div(class = "pt-3", mod_origin_ui("origin"))),
         nav_panel("Triangles", icon = icon("table-cells"), div(class = "pt-3", mod_triangle_ui("triangle"))),
-        nav_panel("Reserves", icon = icon("scale-balanced"), div(class = "pt-3", mod_reserves_ui("reserves")))
+        nav_panel("Reserves", icon = icon("scale-balanced"), div(class = "pt-3", mod_reserves_ui("reserves"))),
+        nav_panel("Reserve ranges", icon = icon("chart-line"), div(class = "pt-3", mod_ranges_ui("ranges")))
       ))
 }
 
@@ -144,6 +160,7 @@ GLOSSARY <- list(
   "IBNER" = "Incurred But Not Enough Reported: expected growth on claims already reported.",
   "IBNR" = "Incurred But Not Reported: claims that have already happened but haven't been reported yet.",
   "URR (unexpired risk)" = "Claims still to happen on policies already written.",
+  "Reserve range" = "How far the eventual cost could reasonably be from the best estimate. Triangulator measures it with Mack's method and shows the standard error and percentiles (for example, the 75th percentile is an amount the outcome should stay below 3 times out of 4).",
   "Large claims" = "Claims whose incurred amount is ever above the threshold you choose. They can be left out of the triangles so they don't distort the patterns."
 )
 
@@ -151,7 +168,7 @@ help_page_ui <- function() {
   div(class = "tri-page",
       layout_columns(
         col_widths = breakpoints(sm = 12, lg = c(7, 5)),
-        card(card_header(class = "fw-semibold", "Quick start"),
+        card(card_header(class = "tri-heading", "Quick start"),
              card_body(
                tags$ol(
                  tags$li("Go to ", tags$strong("Import"), " and upload your claims file, or click ",
@@ -173,12 +190,9 @@ help_page_ui <- function() {
                tags$h6(class = "mt-4", "Your data stays private"),
                tags$p("When you run Triangulator on your own computer, your file never leaves it. Nothing is saved after you close the app."),
                tags$h6(class = "mt-4", "Please note"),
-               tags$p("Triangulator is a companion for exploring claims data. The reserve figures are automatic first estimates and must not be relied on for booking reserves. Use at your own risk."),
-               tags$p(tags$a(href = "documentation.pdf", target = "_blank", rel = "noopener noreferrer",
-                             icon("file-pdf"), " Original documentation (PDF)"),
-                      tags$span(class = "text-muted small", " - written for the previous version, so some screens look different."))
+               tags$p("Triangulator is a companion for exploring claims data. The reserve figures are automatic first estimates and must not be relied on for booking reserves. Use at your own risk.")
              )),
-        card(card_header(class = "fw-semibold", "Glossary"),
+        card(card_header(class = "tri-heading", "Glossary"),
              card_body(do.call(accordion, c(
                lapply(names(GLOSSARY), function(term) accordion_panel(term, GLOSSARY[[term]])),
                list(open = FALSE)

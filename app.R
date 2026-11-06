@@ -18,8 +18,10 @@ ui <- page_navbar(
   window_title = "Triangulator",
   theme = triangulator_theme(),
   fillable = FALSE,
-  navbar_options = navbar_options(bg = "#1f3b63", theme = "dark"),
-  header = tagList(useBusyIndicators(), tags$head(tags$style(HTML(app_css())))),
+  navbar_options = navbar_options(bg = BRAND_RED, theme = "dark"),
+  header = tagList(useBusyIndicators(),
+                  tags$head(tags$link(rel = "stylesheet", href = HEADING_FONT_LINK),
+                            tags$style(HTML(app_css())))),
   nav_panel("Import", value = "import", icon = icon("upload"), mod_import_ui("import")),
   nav_panel("Dashboard", value = "dashboard", icon = icon("chart-column"), uiOutput("dashboard")),
   nav_panel("Help", value = "help", icon = icon("circle-question"), help_page_ui()),
@@ -83,6 +85,7 @@ server <- function(input, output, session) {
   mod_origin_server("origin", app_data)
   mod_triangle_server("triangle", app_data)
   mod_reserves_server("reserves", app_data)
+  mod_ranges_server("ranges", app_data)
 
   output$download_report <- downloadHandler(
     filename = function() paste0("Triangulator_report_", format(Sys.Date(), "%Y-%m-%d"), ".xlsx"),

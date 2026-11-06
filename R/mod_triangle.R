@@ -40,7 +40,7 @@ mod_triangle_ui <- function(id) {
       nav_panel("Table", DT::DTOutput(ns("grid")))
     ),
     card(
-      card_header(class = "fw-semibold", "What changed in one cell?"),
+      card_header(class = "tri-heading", "What changed in one cell?"),
       card_body(
         tags$p(class = "small text-muted",
                "Pick a cell to see which claims changed since their previous valuation. ",
@@ -216,7 +216,7 @@ mod_triangle_server <- function(id, data) {
     output$claim_card <- renderUI({
       claim <- selected_claim()
       if (is.null(claim)) return(NULL)
-      card(card_header(class = "fw-semibold", paste("History of claim", claim)),
+      card(card_header(class = "tri-heading", paste("History of claim", claim)),
            card_body(DT::DTOutput(ns("claim_history"))))
     })
 

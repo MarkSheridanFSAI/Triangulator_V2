@@ -67,7 +67,7 @@ mod_sizes_ui <- function(id) {
     ),
     navset_card_tab(
       full_screen = TRUE,
-      title = "Number of claims by size",
+      title = tags$span(class = "tri-heading", "Number of claims by size"),
       nav_panel("Chart", plotlyOutput(ns("chart"), height = "440px")),
       nav_panel("Table", DT::DTOutput(ns("table")))
     )

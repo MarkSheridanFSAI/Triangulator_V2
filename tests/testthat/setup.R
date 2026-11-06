@@ -58,3 +58,20 @@ cells <- function(tri, measure) {
   x <- x[order(x$origin, x$development), ]
   stats::setNames(x$value, paste0(x$origin, "/", x$development))
 }
+
+# Everything the dashboard is built from, for the sample data.
+sample_app_data <- local({
+  cache <- NULL
+  function() {
+    if (is.null(cache)) {
+      s <- sample_prepared()
+      checks <- check_upload(s$raw, s$mapping)
+      cache <<- list(claims = s$claims, groupings = s$groupings, synthetic_grouping = FALSE,
+                     checks = checks$checks, mapping = s$mapping, file_name = SAMPLE_DATA_FILE,
+                     id = "test", triangles = build_all_triangles(s$claims, s$groupings),
+                     current = current_positions(s$claims), valuation = max(s$claims$date_stamp))
+    }
+    cache
+  }
+})
+

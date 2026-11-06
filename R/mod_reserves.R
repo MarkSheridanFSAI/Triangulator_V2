@@ -27,7 +27,7 @@ mod_reserves_ui <- function(id) {
                   "Don't rely on them for booking reserves.")),
     navset_card_tab(
       full_screen = TRUE,
-      title = "Initial reserve estimates",
+      title = tags$span(class = "tri-heading", "Initial reserve estimates"),
       nav_panel("Waterfall", plotOutput(ns("waterfall"), height = "460px")),
       nav_panel("Table", DT::DTOutput(ns("table"))),
       nav_panel("What do these mean?",

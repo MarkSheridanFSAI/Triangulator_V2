@@ -129,3 +129,57 @@ plot_triangle_heatmap <- function(tri, measure, time) {
     plotly::layout(xaxis = list(title = "Development period", dtick = 1),
                    yaxis = list(title = "", type = "category", tickformat = NULL))
 }
+
+# The likely spread of the total reserve (lognormal, or normal if the reserve
+# isn't positive), with the middle 50% and 90% shaded and percentiles marked.
+plot_reserve_distribution <- function(reserve, std_error, percentiles) {
+  if (!is.finite(std_error) || std_error <= 0) return(empty_plot("Not enough variation in the data to show a range"))
+  lognormal <- reserve > 0
+  if (lognormal) {
+    s2 <- log(1 + (std_error / reserve)^2)
+    mu <- log(reserve) - s2 / 2
+    q <- function(p) stats::qlnorm(p, mu, sqrt(s2))
+    dens <- function(x) stats::dlnorm(x, mu, sqrt(s2))
+  } else {
+    q <- function(p) stats::qnorm(p, reserve, std_error)
+    dens <- function(x) stats::dnorm(x, reserve, std_error)
+  }
+  x <- seq(q(0.001), q(0.999), length.out = 400)
+  band <- function(p, lo, hi, colour, name) {
+    xs <- x[x >= q(lo) & x <= q(hi)]
+    plotly::add_trace(p, x = xs, y = dens(xs), type = "scatter", mode = "none", fill = "tozeroy",
+                      fillcolor = colour, name = name, hoverinfo = "skip")
+  }
+  p <- plotly::plot_ly() %>%
+    band(0.05, 0.95, "rgba(36,87,166,0.15)", "Middle 90% of outcomes") %>%
+    band(0.25, 0.75, "rgba(36,87,166,0.35)", "Middle 50% of outcomes") %>%
+    plotly::add_lines(x = x, y = dens(x), name = "Likelihood", line = list(color = "#2457a6", width = 2),
+                      hovertemplate = "Reserve %{x:,.0f}<extra></extra>")
+  lines <- lapply(seq_len(nrow(percentiles)), function(i) {
+    list(type = "line", x0 = percentiles$reserve[i], x1 = percentiles$reserve[i], y0 = 0, y1 = 1,
+         yref = "paper", line = list(dash = "dash", color = "#555555", width = 1))
+  })
+  notes <- lapply(seq_len(nrow(percentiles)), function(i) {
+    list(x = percentiles$reserve[i], y = 1, yref = "paper", yanchor = "bottom", showarrow = FALSE,
+         text = paste0(format(percentiles$percentile[i] * 100, drop0trailing = TRUE), "%"),
+         font = list(size = 11, color = "#555555"))
+  })
+  finish_plot(p, y_format = "") %>%
+    plotly::layout(shapes = lines, annotations = notes, margin = list(t = 30),
+                   xaxis = list(title = "Total reserve", tickformat = ",.0f"),
+                   yaxis = list(showticklabels = FALSE, title = "", showgrid = FALSE))
+}
+
+# Each origin period's reserve, with plus or minus one standard error.
+plot_reserve_by_origin <- function(by_origin, time) {
+  labels <- format_origin(by_origin$origin, time)
+  plotly::plot_ly(
+    x = factor(labels, levels = labels), y = by_origin$reserve, type = "bar", name = "Reserve",
+    marker = list(color = "#9db4d9", line = list(color = "#2457a6", width = 1)),
+    error_y = list(type = "data", array = by_origin$std_error, color = "#1f3b63", thickness = 1.5),
+    customdata = by_origin$std_error,
+    hovertemplate = "%{x}<br>Reserve %{y:,.0f}<br>Standard error %{customdata:,.0f}<extra></extra>"
+  ) %>%
+    finish_plot() %>%
+    plotly::layout(xaxis = list(type = "category", tickangle = -45), showlegend = FALSE)
+}

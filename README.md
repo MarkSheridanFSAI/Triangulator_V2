@@ -23,6 +23,8 @@ claims development triangles, summaries and first-look reserve estimates for you
   (monthly, quarterly or yearly), for any measure, optionally without large claims.
   Drill into any cell to see which claims moved, and into any claim's full history.
 - **Reserves:** a basic chain-ladder estimate split into case reserves, IBNER, IBNR and unexpired risk.
+- **Reserve ranges:** how uncertain the reserve is (Mack's method): standard error, percentiles
+  and a chart of the likely range of outcomes.
 - **Excel report:** everything in one workbook.
 
 The reserve figures are automatic first estimates. Don't rely on them for booking reserves.
@@ -44,7 +46,7 @@ business are optional. See `www/sample_database.xlsx` for an example.
 | `R/triangles.R`, `R/reserves.R` | The calculations |
 | `R/mod_*.R` | The individual pages and tabs |
 | `tests/testthat/` | Automated tests |
-| `www/` | Sample data and documentation |
+| `www/` | Sample data and the sample column mapping |
 
 ## Testing
 

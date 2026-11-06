@@ -62,6 +62,25 @@ build_report_workbook <- function(d) {
               note = paste("Initial reserve estimates from", time, "triangles (basic chain-ladder)."))
   }
 
+  ranges_tri <- d$triangles$incident_quarterly
+  ranges <- if (is.null(ranges_tri)) NULL else tryCatch(
+    reserve_ranges(select_groups(ranges_tri, d$groupings, list()), "PTOT"),
+    friendly_error = function(e) NULL)
+  if (!is.null(ranges)) {
+    tbl <- ranges$by_origin %>%
+      mutate(origin = format_origin(origin, "quarterly")) %>%
+      select(names(RANGE_COLUMN_LABELS)) %>%
+      bind_rows(ranges$total %>% mutate(origin = "Total") %>% select(names(RANGE_COLUMN_LABELS)))
+    names(tbl) <- unname(RANGE_COLUMN_LABELS)
+    pct <- dplyr::tibble(Percentile = ranges$percentiles$label, `Total reserve` = ranges$percentiles$reserve)
+    add_sheet("Reserve ranges", tbl, number_cols = 2:5,
+              note = paste("Mack's method on the accident-quarter paid triangle, all groups combined.",
+                           "The reserve is everything still to be paid (case reserves, IBNER and IBNR).",
+                           "Percentiles assume a lognormal distribution."))
+    openxlsx::writeData(wb, "Reserve ranges", as.data.frame(pct), startRow = nrow(tbl) + 6, headerStyle = header)
+    openxlsx::addStyle(wb, "Reserve ranges", number, rows = nrow(tbl) + 6 + seq_len(nrow(pct)), cols = 2)
+  }
+
   for (key in names(d$triangles)) {
     tri <- d$triangles[[key]]
     if (is.null(tri)) next

@@ -2,21 +2,6 @@ testthat::local_edition(3)
 
 # These tests drive the app's pages without a browser, using shiny::testServer().
 
-sample_app_data <- local({
-  cache <- NULL
-  function() {
-    if (is.null(cache)) {
-      s <- sample_prepared()
-      checks <- check_upload(s$raw, s$mapping)
-      cache <<- list(claims = s$claims, groupings = s$groupings, synthetic_grouping = FALSE,
-                     checks = checks$checks, mapping = s$mapping, file_name = SAMPLE_DATA_FILE,
-                     id = "test", triangles = build_all_triangles(s$claims, s$groupings),
-                     current = current_positions(s$claims), valuation = max(s$claims$date_stamp))
-    }
-    cache
-  }
-})
-
 set_mapping <- function(session, m) {
   do.call(session$setInputs, c(m[SINGLE_FIELDS], list(groupings = m$groupings)))
 }
@@ -90,7 +75,7 @@ test_that("the Excel report can be built, including with no grouping columns", {
   openxlsx::saveWorkbook(build_report_workbook(d), path)
   sheets <- openxlsx::getSheetNames(path)
   expect_true(all(c("About", "Data checks", "Summary", "Claim sizes", "Reserves quarterly",
-                    "incident_quarterly") %in% sheets))
+                    "Reserve ranges", "incident_quarterly") %in% sheets))
 
   s <- sample_prepared()
   fin <- finalise_claims(s$std, character(0))
