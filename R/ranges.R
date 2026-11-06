@@ -135,3 +135,43 @@ reserve_ranges <- function(tri, measure = "PTOT") {
                                    reserve = pct)
   res
 }
+
+# ---- Comparing with the Reserves tab ------------------------------------------------
+
+# The Reserves tab components that cover the same thing as a reserve projected
+# on this basis and measure (see range_covers()).
+comparable_components <- function(basis, measure) {
+  c(if (measure == "PTOT") "CASE", "IBNER",
+    if (basis %in% c("incident", "underwriting")) "IBNR",
+    if (basis == "underwriting") "URR")
+}
+
+# How the Reserve ranges best estimate compares with the Reserves tab.
+# `components` comes from reserve_components() (same period length);
+# `chosen` is a group label or ALL_GROUPS.
+compare_with_reserves <- function(range_reserve, components, groupings, basis, measure, chosen,
+                                  n_groups) {
+  parts <- comparable_components(basis, measure)
+  comp <- components[components$metric %in% parts, ]
+  if (!identical(chosen, ALL_GROUPS)) comp <- comp[group_label(comp, groupings) == chosen, ]
+  reserves_tab <- sum(comp$value, na.rm = TRUE)
+  reasons <- character(0)
+  if (measure == "PTOT") {
+    reasons <- c(reasons, paste(
+      "This tab is projecting paid amounts, while the Reserves tab projects incurred amounts.",
+      "The two use different information (payments only vs payments plus case estimates), so they",
+      "normally give different answers. Choose 'Incurred amounts' to compare like with like."))
+  }
+  if (identical(chosen, ALL_GROUPS) && n_groups > 1) {
+    reasons <- c(reasons, paste(
+      "Here all groups are combined into one triangle before projecting. The Reserves tab projects",
+      "each group separately and adds the results up. Groups that develop differently give different",
+      "answers. Choose a single group to compare like with like."))
+  }
+  difference <- range_reserve - reserves_tab
+  if (length(reasons) == 0 && abs(difference) > max(1, 1e-6 * abs(reserves_tab))) {
+    reasons <- paste("Some rows are missing a policy start, incident or report date, so the triangles",
+                     "on different bases include slightly different claims.")
+  }
+  list(reserves_tab = reserves_tab, difference = difference, parts = parts, reasons = reasons)
+}

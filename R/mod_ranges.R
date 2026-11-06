@@ -34,6 +34,7 @@ mod_ranges_ui <- function(id) {
                   "development pattern will continue, and don't allow for things like inflation ",
                   "shocks or changes in claims handling.")),
     uiOutput(ns("headline")),
+    uiOutput(ns("comparison")),
     navset_card_tab(
       full_screen = TRUE,
       title = tags$span(class = "tri-heading", "Reserve ranges"),
@@ -66,7 +67,18 @@ mod_ranges_ui <- function(id) {
                        "For example, the 75th percentile is the amount the outcome is expected to stay below 3 times out of 4. ",
                        "The 99.5th percentile is often used for 1-in-200-year capital measures."),
                 tags$p("Uncertainty for 'All groups combined' is worked out on the combined triangle, so it is usually ",
-                       "lower than adding up each group's range."))
+                       "lower than adding up each group's range."),
+                tags$h6(class = "mt-3", "Why the best estimate can differ from the Reserves tab"),
+                tags$p("With ", tags$strong("incurred amounts"), " and a ", tags$strong("single group"),
+                       ", the best estimate here is exactly the same chain-ladder as the Reserves tab. It can differ when:"),
+                tags$ul(
+                  tags$li(tags$strong("You project paid amounts."), " The Reserves tab always projects incurred amounts ",
+                          "(paid plus case estimates). Paid projections ignore case estimates, so they give a different, ",
+                          "independent view. Comparing the two is a useful check in itself."),
+                  tags$li(tags$strong("You look at all groups combined."), " Here the groups are added together into one ",
+                          "triangle first. The Reserves tab projects each group on its own and adds up the results.")
+                ),
+                tags$p("The box under the headline figures shows the matching Reserves tab figure for your current choices."))
     )
   )
 }
@@ -123,6 +135,31 @@ mod_ranges_server <- function(id, data) {
           value_box("Uncertainty (CV)", if (is.na(tot$cv)) "n/a" else scales::percent(tot$cv, accuracy = 1)),
           value_box("75th percentile", fmt_amount(pct$reserve[pct$percentile == 0.75])),
           value_box("99.5th percentile", fmt_amount(pct$reserve[pct$percentile == 0.995]))))
+    })
+
+    output$comparison <- renderUI({
+      r <- ranges()
+      d <- data()
+      comps <- tryCatch(reserve_components(d$triangles, d$groupings, input$time),
+                        friendly_error = function(e) NULL)
+      if (is.null(comps)) return(NULL)
+      chosen <- if (isTRUE(d$synthetic_grouping)) ALL_GROUPS else input$group
+      n_groups <- length(unique(group_label(d$current, d$groupings)))
+      cmp <- compare_with_reserves(r$total$reserve, comps, d$groupings, input$basis, input$measure,
+                                   chosen, n_groups)
+      labels <- unname(RESERVE_LABELS[cmp$parts])
+      bold <- function(...) tags$strong(..., .noWS = "outside")
+      matches <- length(cmp$reasons) == 0
+      div(class = paste("alert mb-3", if (matches) "alert-success" else "alert-light border"),
+          tags$p(class = "mb-1",
+                 bold("Compared with the Reserves tab: "),
+                 paste0("the matching figure there (", paste(labels, collapse = " + "), ", ",
+                        tolower(names(PERIOD_CHOICES)[PERIOD_CHOICES == input$time]), ") is "),
+                 bold(fmt_amount(cmp$reserves_tab)),
+                 if (matches) ". This tab's best estimate matches it."
+                 else tagList(". This tab's best estimate is ", bold(fmt_amount(abs(cmp$difference))),
+                              paste0(if (cmp$difference > 0) " higher" else " lower", ". Why:"))),
+          if (!matches) tags$ul(class = "mb-0 small", lapply(cmp$reasons, tags$li)))
     })
 
     output$distribution <- renderPlotly({

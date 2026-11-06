@@ -63,3 +63,28 @@ test_that("the ranges tab works on the sample data for every group choice", {
     expect_true(is.finite(ranges()$total$std_error))
   })
 })
+
+test_that("with incurred amounts and one group, the best estimate matches the Reserves tab", {
+  d <- sample_app_data()
+  comps <- reserve_components(d$triangles, d$groupings, "quarterly")
+  for (basis in c("reporting", "incident", "underwriting")) {
+    tri <- d$triangles[[paste0(basis, "_quarterly")]]
+    one <- tri[group_label(tri, d$groupings) == "motor / liability", ]
+    r <- reserve_ranges(select_groups(one, d$groupings, list()), "ITOT")
+    cmp <- compare_with_reserves(r$total$reserve, comps, d$groupings, basis, "ITOT",
+                                 "motor / liability", n_groups = 4)
+    expect_equal(r$total$reserve, cmp$reserves_tab, tolerance = 1e-9, label = basis)
+    expect_length(cmp$reasons, 0)
+  }
+})
+
+test_that("paid amounts and combined groups are explained as reasons for a difference", {
+  d <- sample_app_data()
+  comps <- reserve_components(d$triangles, d$groupings, "quarterly")
+  r <- reserve_ranges(select_groups(d$triangles$incident_quarterly, d$groupings, list()), "PTOT")
+  cmp <- compare_with_reserves(r$total$reserve, comps, d$groupings, "incident", "PTOT", ALL_GROUPS, n_groups = 4)
+  expect_equal(cmp$parts, c("CASE", "IBNER", "IBNR"))
+  expect_length(cmp$reasons, 2)
+  expect_match(cmp$reasons[1], "paid amounts")
+  expect_match(cmp$reasons[2], "combined into one triangle")
+})

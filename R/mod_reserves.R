@@ -6,7 +6,8 @@ RESERVE_EXPLANATIONS <- list(
   "IBNER" = "Expected further growth on claims already reported (chain-ladder on the reported-date triangles).",
   "IBNR" = "Claims that have happened but haven't been reported yet (accident triangles compared with reported triangles).",
   "Unexpired risk (URR)" = "Claims still to happen on policies already written (underwriting triangles compared with accident triangles).",
-  "Ultimate" = "The total of all of the above: the expected final cost."
+  "Ultimate" = "The total of all of the above: the expected final cost.",
+  "Reserve ranges" = "The Reserve ranges tab shows how uncertain these figures are. With incurred amounts and a single group its best estimate matches this tab; with paid amounts or all groups combined it will differ (the box on that tab explains why)."
 )
 
 mod_reserves_ui <- function(id) {
